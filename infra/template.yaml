@@ -1,0 +1,149 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: aparts-web public booking site (www.central-aparts.store)
+
+Parameters:
+  BackofficeUrl:
+    Type: String
+    Default: https://cv.central-aparts.store
+    Description: Base URL of the backoffice API
+
+  PublicApiKey:
+    Type: String
+    NoEcho: true
+    Description: Shared secret for backoffice public API (X-Public-API-Key)
+
+  SecretKey:
+    Type: String
+    NoEcho: true
+    Description: Flask SESSION secret key
+
+  AcmCertArn:
+    Type: String
+    Description: ACM certificate ARN for www.central-aparts.store (must be in us-east-1)
+
+  SiteUrl:
+    Type: String
+    Default: https://www.central-aparts.store
+
+  FunctionName:
+    Type: String
+    # Без типового значення навмисно: деплой без явного імені падає ще до змін,
+    # а не створює другу функцію поруч зі старою.
+    Description: Name of the existing Lambda function (must match the deployed stack)
+
+Globals:
+  Function:
+    Runtime: python3.13
+    MemorySize: 256
+    Timeout: 30
+    Environment:
+      Variables:
+        BACKOFFICE_URL: !Ref BackofficeUrl
+        PUBLIC_API_KEY: !Ref PublicApiKey
+        SECRET_KEY: !Ref SecretKey
+        SITE_URL: !Ref SiteUrl
+
+Resources:
+
+  # ---- Lambda ----
+  V2SiteFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Ref FunctionName
+      Handler: wsgi_adapter.lambda_handler
+      CodeUri: ../
+      FunctionUrlConfig:
+        AuthType: NONE
+        Cors:
+          AllowOrigins:
+            - !Ref SiteUrl
+      # No IAM policies needed — reads data via backoffice HTTP API only
+      Events:
+        # Keep one container warm — cold starts were the main "slow page" cause.
+        # wsgi_adapter short-circuits {"warming": true} before touching Flask.
+        Warmer:
+          Type: Schedule
+          Properties:
+            Schedule: rate(4 minutes)
+            Input: '{"warming": true}'
+
+  # ---- CloudFront ----
+  V2Distribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        HttpVersion: http2
+        PriceClass: PriceClass_100
+        Comment: aparts-web public booking site
+        # ⚠️ ЖИВИЙ РЕСУРС НЕСЕ ТРИ ІМЕНІ, А НЕ ДВА. Голе central-aparts.store додали
+        # руками 27.08.2026 повз цей шаблон, тоді ж підмінили сертифікат: чинний
+        # сертифікат дистрибуції покриває апекс і www, але НЕ v2. Викат цього шаблону
+        # зніме апекс з Aliases і зламає відкат апекса на CloudFront. На вікно відкату
+        # (до 16.09.2026) викат стека заборонено головним дирижером. Апекс сюди НЕ
+        # дописуємо: це змінило б опис ресурсу і зробило наступний викат таким, що
+        # зачіпає дистрибуцію, — саме того й уникаємо.
+        Aliases:
+          - www.central-aparts.store
+          - v2.central-aparts.store
+        ViewerCertificate:
+          AcmCertificateArn: !Ref AcmCertArn
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.2_2021
+        DefaultCacheBehavior:
+          TargetOriginId: V2Lambda
+          ViewerProtocolPolicy: redirect-to-https
+          # Allow all HTTP methods so POST /book/<id> and any future methods reach Lambda
+          AllowedMethods:
+            - DELETE
+            - GET
+            - HEAD
+            - OPTIONS
+            - PATCH
+            - POST
+            - PUT
+          # Only GET and HEAD responses are safe to cache; POST etc. are always forwarded
+          CachedMethods:
+            - GET
+            - HEAD
+          # CachingDisabled — all requests forwarded to Lambda
+          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+          # AllViewerExceptHostHeader — pass cookies/query strings
+          OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
+          Compress: true
+        CacheBehaviors:
+          # Static assets cached at the edge (CSS/JS/images don't vary by user).
+          # Every deploy invalidates /static/* so a long edge TTL is safe;
+          # the browser TTL is short (Cache-Control set in app.py).
+          - PathPattern: /static/*
+            TargetOriginId: V2Lambda
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods:
+              - GET
+              - HEAD
+            CachedMethods:
+              - GET
+              - HEAD
+            # CachingOptimized
+            CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+            Compress: true
+        Origins:
+          - Id: V2Lambda
+            DomainName: !Select
+              - 2
+              - !Split ["/", !GetAtt V2SiteFunctionUrl.FunctionUrl]
+            CustomOriginConfig:
+              HTTPSPort: 443
+              OriginProtocolPolicy: https-only
+              OriginSSLProtocols:
+                - TLSv1.2
+
+Outputs:
+  LambdaFunctionUrl:
+    Value: !GetAtt V2SiteFunctionUrl.FunctionUrl
+    Description: Lambda Function URL (set as CloudFront origin)
+
+  CloudFrontDomain:
+    Value: !GetAtt V2Distribution.DomainName
+    Description: CloudFront domain — create CNAME www.central-aparts.store → this value

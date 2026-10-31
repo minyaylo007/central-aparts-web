@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="{{ 'uk' if lang == 'ua' else 'en' }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{% block title %}Central Square Apartments — Дизайнерські апартаменти у Чернівцях{% endblock %}</title>
+  <meta name="description" content="{% block meta_desc %}Дизайнерські апартаменти в центрі Чернівців. Самостійний заїзд 24/7, онлайн оплата. Бронюйте напряму — без комісій.{% endblock %}">
+  <meta property="og:title" content="{% block og_title %}Central Square Apartments — Чернівці{% endblock %}">
+  <meta property="og:description" content="{% block og_desc %}Дизайнерські апартаменти в серці Чернівців. 1 хвилина від вул. Кобилянської. Самостійний заїзд 24/7.{% endblock %}">
+  <meta property="og:image" content="{% block og_image %}{{ config.SITE_URL }}/static/img/hero.webp{% endblock %}">
+  <meta property="og:url" content="{{ config.SITE_URL }}{{ request.path }}">
+  <meta property="og:type" content="website">
+  <link rel="canonical" href="{{ config.SITE_URL }}{{ request.path }}">
+  <meta name="theme-color" content="#E9E3D8">
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <link rel="apple-touch-icon" href="/static/favicon.svg">
+
+  <!-- GTM і пиксель — ПІСЛЯ load (22.10): разом 276 КБ скриптів, що на телефоні ділили канал і
+       головний потік із картинкою першого екрана (LCP). Черги dataLayer і fbq створюються одразу,
+       тож PageView, InitiateCheckout і Purchase не губляться — лише відправляються, коли бібліотеки
+       прийдуть. Страховка: не пізніше 3 с від початку сторінки, навіть якщо load затримався. -->
+  <script>
+    function __afterLoad(fn) {
+      var done = false;
+      function go() { if (!done) { done = true; setTimeout(fn, 0); } }
+      if (document.readyState === 'complete') go();
+      else { window.addEventListener('load', go); setTimeout(go, 3000); }
+    }
+  </script>
+  <!-- Google Tag Manager -->
+  <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});__afterLoad(function(){var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);});})(window,document,'script','dataLayer','{{ config.GTM_ID }}');</script>
+
+  <!-- Facebook Pixel -->
+  <script>!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];__afterLoad(function(){t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)})}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','{{ config.FB_PIXEL_ID }}');fbq('track','PageView');</script>
+
+  <!-- Перший екран (22.10): його правила — інлайном, static/critical/<група>.css (генерує
+       scripts/build_css.sh). Групу задає сторінка: {% raw %}{% set critical_group = 'home' %}{% endraw %} після extends.
+       Це ПЕРШИЙ аркуш документа: Flatpickr бере перший аркуш із доступними cssRules, і чужий
+       CDN-аркуш на цьому місці давав SecurityError. -->
+  <style>{{ critical_css(critical_group | default('other')) }}</style>
+  {# картинка LCP — раніше за повні аркуші: preload іде в чергу в порядку документа #}
+  {% block preload_lcp %}{% endblock %}
+
+  <!-- Fonts: Cormorant Garamond (display) + Inter (body) — both Cyrillic -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <!-- Шрифти не блокують першу відмальовку (LCP): до завантаження — системні з тими ж метриками -->
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+
+  <!-- Swiper: не блокує; мінімум розкладки слайдів — у styles.css -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@12.2.0/swiper-bundle.min.css" integrity="sha384-+eoVPirEHy8XSrf7sRozx+2OTKCWm1qfVFWnQ7qiXW6vAb+GUXRw4gq7sU+hq6HG" crossorigin="anonymous" media="print" onload="this.media='all'">
+  <!-- Non-critical CSS loads without blocking first paint: icons appear a beat later -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" integrity="sha384-XGjxtQfXaH2tnPFa9x+ruJTuLE3Aa6LhHSWRr1XeTyhezb4abCG4ccI5AkVDxqC+" crossorigin="anonymous" rel="stylesheet" media="print" onload="this.media='all'">
+  <!-- Повні аркуші — media="print" (найнижчий пріоритет, відмальовку не блокують і не відбирають
+       канал у картинки першого екрана: усе для нього вже є в інлайн-<style>). Вмикаються РАЗОМ,
+       коли прийшли всі три: поодинці bootstrap-lite, що встиг першим, перебивав інлайн-критику —
+       шапка ставала в потік і hero з'їжджав на 60 px (CLS до 0,5). main.js чекає події fullcss.
+       Каскад — за місцем <link> у документі. bootstrap-lite — лише використане з Bootstrap 5.3.3. -->
+  <script>
+    var __fullCssLeft = 3;
+    function __fullCssOn() {
+      if (--__fullCssLeft) return;
+      var links = document.querySelectorAll('link[data-full-css]');
+      for (var i = 0; i < links.length; i++) links[i].media = 'all';
+      window.__fullCss = true;
+      document.dispatchEvent(new Event('fullcss'));
+    }
+  </script>
+  <link rel="stylesheet" href="{{ static_url('vendor/bootstrap-lite.css') }}" media="print" data-full-css onload="__fullCssOn()" onerror="__fullCssOn()">
+  <link rel="stylesheet" href="{{ static_url('vendor/flatpickr-4.6.13.min.css') }}" media="print" data-full-css onload="__fullCssOn()" onerror="__fullCssOn()">
+  <link rel="stylesheet" href="{{ static_url('styles.css') }}" media="print" data-full-css onload="__fullCssOn()" onerror="__fullCssOn()">
+  <noscript>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@12.2.0/swiper-bundle.min.css" integrity="sha384-+eoVPirEHy8XSrf7sRozx+2OTKCWm1qfVFWnQ7qiXW6vAb+GUXRw4gq7sU+hq6HG" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" integrity="sha384-XGjxtQfXaH2tnPFa9x+ruJTuLE3Aa6LhHSWRr1XeTyhezb4abCG4ccI5AkVDxqC+" crossorigin="anonymous" rel="stylesheet">
+    <link rel="stylesheet" href="{{ static_url('vendor/bootstrap-lite.css') }}">
+    <link rel="stylesheet" href="{{ static_url('vendor/flatpickr-4.6.13.min.css') }}">
+    <link rel="stylesheet" href="{{ static_url('styles.css') }}">
+  </noscript>
+  {% block head_extra %}{% endblock %}
+</head>
+<body>
+
+<!-- GTM noscript -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id={{ config.GTM_ID }}" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+
+<!-- Navbar -->
+<nav class="navbar navbar-expand-lg site-nav {% block nav_class %}{% endblock %}" id="siteNav">
+  <div class="container d-flex align-items-center">
+
+    <a class="navbar-brand site-logo me-auto" href="/">Central<span> Square</span></a>
+
+    <!-- MOBILE: lang switcher + «Забронювати» завжди на виду (не в бургері) -->
+    <div class="lang-mobile d-lg-none me-2">
+      {% if lang == 'ua' %}
+        <a href="/lang/en" class="lang-mobile-btn" aria-label="EN — English">EN</a>
+      {% else %}
+        <a href="/lang/ua" class="lang-mobile-btn" aria-label="UA — Українська">UA</a>
+      {% endif %}
+    </div>
+    <a href="{{ url_for('home') }}#apartments" class="btn-book-nav btn-book-nav--bar d-lg-none me-1">{{ t("book_now") }}</a>
+
+    <button class="navbar-toggler border-0 shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu" aria-label="Меню">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navMenu">
+      <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-1">
+        <li class="nav-item"><a class="nav-link" href="/#apartments">{{ t("apartments") }}</a></li>
+        <li class="nav-item"><a class="nav-link" href="/#about">{{ t("about") }}</a></li>
+        <li class="nav-item"><a class="nav-link" href="/#contacts">{{ t("contacts") }}</a></li>
+        <li class="nav-item d-lg-none">
+          <a href="https://t.me/minyaylo" target="_blank" rel="noopener" class="nav-link nav-telegram-link">
+            <i class="bi bi-telegram"></i> @minyaylo
+          </a>
+        </li>
+        <li class="nav-item ms-lg-2 d-none d-lg-block">
+          <a href="{{ url_for('home') }}#apartments" class="btn-book-nav">{{ t("book_now") }}</a>
+        </li>
+        <li class="nav-item lang-toggle d-none d-lg-flex">
+          {% if lang == 'ua' %}
+            <a href="/lang/en" class="btn btn-sm">EN</a>
+          {% else %}
+            <a href="/lang/ua" class="btn btn-sm">UA</a>
+          {% endif %}
+        </li>
+      </ul>
+    </div>
+
+  </div>
+</nav>
+
+<!-- Flash messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="flash-container">
+      {% for category, message in messages %}
+        <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+{% block content %}{% endblock %}
+
+<!-- Footer -->
+<footer class="site-footer" id="contacts">
+  <div class="container">
+    <div class="row gy-4">
+
+      <!-- Brand + host -->
+      <div class="col-lg-4 col-md-6">
+        <div class="footer-brand">Central<span> Square</span></div>
+        <p class="footer-tagline">{{ t("footer_tagline") }}</p>
+        <p class="footer-address">
+          <i class="bi bi-geo-alt"></i> {{ t("address") }}
+        </p>
+        <div class="footer-host">
+          <span class="footer-host-avatar">І</span>
+          <div>
+            <div class="footer-host-name">{{ t("host_name") }}</div>
+            <div class="footer-host-meta">{{ t("host_response") }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Navigation -->
+      <div class="col-lg-2 col-md-6 col-6">
+        <div class="footer-section-title">{{ t("footer_nav_title") }}</div>
+        <div class="footer-links">
+          <a href="/#apartments">{{ t("apartments") }}</a>
+          <a href="/#about">{{ t("about") }}</a>
+          <a href="/#checkin">{{ t("checkin_section_title") }}</a>
+          <a href="/#faq">FAQ</a>
+          <a href="/#contacts">{{ t("contacts") }}</a>
+        </div>
+      </div>
+
+      <!-- Contact -->
+      <div class="col-lg-3 col-md-6 col-6">
+        <div class="footer-section-title">{{ t("footer_contact_title") }}</div>
+        <div class="footer-contact-list">
+          <a href="https://t.me/minyaylo" target="_blank" rel="noopener"><i class="bi bi-telegram"></i> @minyaylo</a>
+          <a href="tel:+380502648312"><i class="bi bi-telephone"></i> +38 050 264 83 12</a>
+          <a href="https://instagram.com/Central_Square_CV" target="_blank" rel="noopener"><i class="bi bi-instagram"></i> @Central_Square_CV</a>
+        </div>
+      </div>
+
+      <!-- Trust / payment -->
+      <div class="col-lg-3 col-md-6">
+        <div class="footer-section-title">{{ t("footer_pay_title") }}</div>
+        <p class="footer-pay-desc">
+          {{ t("footer_pay_desc") }}
+        </p>
+        <div class="footer-pay">
+          <span class="pay-badge">Visa</span>
+          <span class="pay-badge">Mastercard</span>
+          <span class="pay-badge">Apple&nbsp;Pay</span>
+          <span class="pay-badge">G&nbsp;Pay</span>
+          <span class="pay-badge">Monobank</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <p class="footer-copy">&copy; {{ current_year }} Central Square Apartments. {{ t("footer_rights") }}.</p>
+      <div class="footer-social">
+        <a href="https://t.me/minyaylo" target="_blank" rel="noopener"><i class="bi bi-telegram"></i> Telegram</a>
+        <a href="https://instagram.com/Central_Square_CV" target="_blank" rel="noopener"><i class="bi bi-instagram"></i> Instagram</a>
+        <a href="tel:+380502648312"><i class="bi bi-telephone"></i> {{ t("phone_label") }}</a>
+      </div>
+    </div>
+    {% if analytics_on %}<p class="footer-copy mt-2 mb-0">{{ t("analytics_note") }}</p><script src="{{ static_url('analytics.js') }}"></script>{% endif %}
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/swiper@12.2.0/swiper-bundle.min.js" integrity="sha384-TmUUNA9gRm9TspAqMh20CdxlcwkNFW3UyIOibSljonhpJ1UfGenJDyQvO/EbWwpW" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js" integrity="sha384-5JqMv4L/Xa0hfvtF06qboNdhvuYXUku9ZrhZh3bSk8VXF0A/RuSLHpLsSV9Zqhl6" crossorigin="anonymous"></script>
+{% if lang == 'ua' %}
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/uk.js" integrity="sha384-HG+M/dqt+UQSFlJ+nBWGfRQV14nMLazc9UDtv6FbGVgyS4K1DwWWXAv3qWyzPSWw" crossorigin="anonymous"></script>
+{% endif %}
+<script src="{{ static_url('main.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,29 @@
+{% extends "stats_base.html" %}
+{% block title %}Запись сессии{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ static_url('vendor/rrweb-player-2.1.7.min.css') }}">
+{% endblock %}
+{% block body %}
+<div class="stats-top">
+  <h1>Запись сессии</h1>
+  <nav><a href="{{ url_for('analytics.stats_home') }}">← Панель</a></nav>
+</div>
+<p class="hint muted">Поля ввода и форма брони закрыты маской; паузы без действий пропускаются.</p>
+<div class="card-s" id="player"><p class="empty" id="status">Загружаю запись…</p></div>
+<script src="{{ static_url('vendor/rrweb-player-2.1.7.min.js') }}"></script>
+<script>
+(function () {
+  var box = document.getElementById('player'), status = document.getElementById('status');
+  fetch({{ url_for('analytics.stats_rec', sid=sid) | tojson }}, { credentials: 'same-origin' })
+    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function (events) {
+      if (!events || events.length < 2) { status.textContent = 'В записи слишком мало событий.'; return; }
+      status.remove();
+      var P = window.rrwebPlayer, Player = P && (P['default'] || P.Player || P);
+      var w = Math.min(box.clientWidth - 32, 1200);
+      new Player({ target: box, props: { events: events, skipInactive: true, autoPlay: false, width: w, height: Math.round(w * 0.6) } });
+    })
+    .catch(function () { status.textContent = 'Запись не найдена или устарела (хранятся 90 дней).'; });
+})();
+</script>
+{% endblock %}

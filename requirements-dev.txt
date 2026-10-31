@@ -1,0 +1,7 @@
+# Залежності розробки й CI: застосунок + тести + лінтер.
+# CI (.github/workflows/ci.yml) ставить лише звідси — не списком у workflow.
+# Інструменти прибиті точно, щоб CI і venv ~/venvs/central-aparts-site мали одне й те саме;
+# підняти версію — тут, свідомо, з прогоном pytest і ruff.
+-r requirements.txt
+pytest==9.1.1
+ruff==0.16.7

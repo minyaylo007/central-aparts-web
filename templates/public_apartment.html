@@ -1,0 +1,448 @@
+{% extends "public_base.html" %}
+{% set critical_group = 'apartment' %}
+
+{% block title %}{{ apt.name }} — Central Square Apartments, Чернівці{% endblock %}
+{% block meta_desc %}{{ apt.name }} у Чернівцях. {{ apt.price }} грн/ніч. Центр міста, Головна 51. Самостійний заїзд 24/7.{% endblock %}
+{% block og_title %}{{ apt.name }} — Central Square Apartments{% endblock %}
+{% block og_desc %}{{ apt.name }} у центрі Чернівців. {{ apt.price }} грн/ніч. Самостійний заїзд.{% endblock %}
+{% if apt.photos %}{% block og_image %}{{ apt.photos[0] }}{% endblock %}{% endif %}
+
+{# шапка суцільна: на світлому фото прозора губила логотип (аудит 21.10, п.10) #}
+{% block nav_class %}nav-solid{% endblock %}
+
+{% block head_extra %}
+<script>
+  var APT_ID        = {{ apt.id | tojson }};
+  var APT_PRICE     = {{ apt.price | int }};
+  var APT_CODE      = {{ apt.code | tojson }};
+  var BLOCKED_DATES = {{ availability | tojson }};
+  var LANG          = {{ lang | tojson }};
+  var COUPON_TXT    = {
+    applied:        {{ t("coupon_applied") | tojson }},
+    foundPickDates: {{ t("coupon_found_pick_dates") | tojson }},
+    notFound:       {{ t("coupon_not_found") | tojson }},
+    minTotal:       {{ t("coupon_min_total") | tojson }},
+    gone:           {{ t("coupon_gone") | tojson }},
+    error:          {{ t("coupon_error") | tojson }},
+    shortPhone:     {{ t("coupon_short_phone") | tojson }}
+  };
+  var BOOK_TXT = {
+    creating:  {{ t("book_creating") | tojson }},
+    pay:       {{ t("proceed_to_payment") | tojson }},
+    stickyPay: {{ t("sticky_pay") | tojson }},
+    bookNow:   {{ t("book_now") | tojson }}
+  };
+  var GROUP_TXT = {
+    thisRoom:    {{ t("group_this_room") | tojson }},
+    guests:      {{ t("group_guests_short") | tojson }},
+    totalFew:    {{ t("group_total_few") | tojson }},
+    totalMany:   {{ t("group_total_many") | tojson }},
+    counting:    {{ t("group_counting") | tojson }},
+    error:       {{ t("group_quote_error") | tojson }},
+    unavailable: {{ t("group_unavailable_quote") | tojson }},
+    couponNote:  {{ t("group_coupon_note") | tojson }}
+  };
+  var LIGHTBOX_TXT = {
+    close:   {{ t("lightbox_close") | tojson }},
+    prev:    {{ t("lightbox_prev") | tojson }},
+    next:    {{ t("lightbox_next") | tojson }},
+    photo:   {{ t("lightbox_photo") | tojson }},
+    photoOf: {{ t("lightbox_photo_of") | tojson }}
+  };
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Product",
+  "name": {{ apt.name | tojson }},
+  "description": {{ (apt.description or t("apt_default_desc1")) | tojson }},
+  "image": {{ (apt.photos or []) | tojson }},
+  "offers": {
+    "@type": "Offer",
+    "price": {{ apt.price | int }},
+    "priceCurrency": "UAH",
+    "availability": "https://schema.org/InStock",
+    "url": {{ (config.SITE_URL ~ "/apartment/" ~ apt.id) | tojson }}
+  }
+}
+</script>
+{% endblock %}
+
+{% block content %}
+
+<!-- Gallery -->
+<div class="apt-gallery {% if apt.photos and apt.photos|length >= 5 %}has-collage{% endif %}" id="aptGallery">
+  {% if apt.photos and apt.photos|length >= 5 %}
+  <!-- Desktop: editorial photo collage (1 large + 4 tiles); mobile keeps the swiper -->
+  <div class="apt-collage">
+    {% for photo in apt.photos[:5] %}
+    <div class="apt-collage-item">
+      <img src="{{ photo }}" alt="{{ apt.name }}" class="gallery-photo"
+           {% if loop.index == 1 %}fetchpriority="high" decoding="async"{% else %}loading="lazy" decoding="async"{% endif %}>
+    </div>
+    {% endfor %}
+    <button type="button" class="apt-gallery-count apt-collage-count" data-lightbox-open>
+      <i class="bi bi-images" aria-hidden="true"></i> {{ t("view_all_photos") }} ({{ apt.photos|length }})
+    </button>
+  </div>
+  {% endif %}
+  {% if apt.photos %}
+  <div class="swiper apt-hero-swiper">
+    <div class="swiper-wrapper">
+      {% for photo in apt.photos %}
+      <div class="swiper-slide apt-hero-slide">
+        <img src="{{ photo }}" alt="{{ apt.name }}" class="apt-hero-img gallery-photo" data-index="{{ loop.index0 }}"
+             {% if loop.index == 1 %}fetchpriority="high"{% else %}loading="lazy"{% endif %} decoding="async">
+      </div>
+      {% endfor %}
+    </div>
+    <div class="swiper-button-next"></div>
+    <div class="swiper-button-prev"></div>
+    <div class="swiper-pagination"></div>
+    <button type="button" class="apt-gallery-count" id="galleryCount" aria-label="{{ t('view_all_photos') }}">
+      <i class="bi bi-images" aria-hidden="true"></i> <span id="galleryCountText">1 / {{ apt.photos|length }}</span>
+    </button>
+  </div>
+  {% else %}
+  <div class="apt-hero-placeholder"><i class="bi bi-building" aria-hidden="true"></i></div>
+  {% endif %}
+</div>
+
+<div class="container">
+  <a href="/" class="btn-back"><i class="bi bi-arrow-left" aria-hidden="true"></i> {{ t("all_apartments") }}</a>
+</div>
+
+<div class="container apt-detail-layout">
+  {# заголовок над колонками: на телефоні одразу під ним — віджет дат (аудит 21.10, п.1);
+     ціна лише у віджеті й липкій панелі, без дубля під заголовком (п.9) #}
+  <header class="apt-detail-head">
+    <h1 class="apt-detail-name">{{ apt.name }}</h1>
+    <div class="apt-detail-meta">
+      <span><i class="bi bi-star-fill apt-detail-star" aria-hidden="true"></i> 9,6 · Booking.com</span>
+      <span class="dot-sep"></span>
+      <span><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ t("city_center") }}</span>
+      <span class="dot-sep"></span>
+      <span><i class="bi bi-check2" aria-hidden="true"></i> {{ t("perk_direct_host") }}</span>
+    </div>
+  </header>
+
+  <div class="row gy-4 gy-lg-5">
+
+    <!-- Left: info -->
+    <div class="col-lg-7 order-2 order-lg-1">
+      {% if apt.amenities %}
+      <div class="apt-amenities-full">
+        {% for amenity in apt.amenities %}
+        <span class="amenity-chip"><i class="bi bi-check2" aria-hidden="true"></i> {{ amenity }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <div class="apt-description">
+        {% if apt.description %}
+        <p>{{ apt.description }}</p>
+        {% else %}
+        <p>{{ t("apt_default_desc1") }}</p>
+        <p>{{ t("apt_default_desc2") }}</p>
+        {% endif %}
+      </div>
+
+      <div class="apt-section-divider"></div>
+
+      <!-- How to get there -->
+      <h3 class="apt-block-title">{{ t("how_to_get_title") }}</h3>
+      <p class="apt-how-to-get">
+        <strong>{{ t("address_label") }}:</strong> {{ t("how_to_get_text") }}
+      </p>
+      <a href="https://maps.google.com/?q=Holovna+Street+51,+Chernivtsi,+Ukraine" target="_blank" rel="noopener" class="btn-text-link">
+        <i class="bi bi-map" aria-hidden="true"></i> {{ t("open_google_maps") }}
+      </a>
+
+      <div class="apt-section-divider"></div>
+
+      <!-- Self check-in -->
+      <h3 class="apt-block-title">{{ t("self_checkin_card_title") }}</h3>
+      <div class="apt-info-card">
+        <div class="apt-steps">
+          <div class="apt-step-row"><span class="apt-step-dot">1</span> {{ t("apt_step1") }}</div>
+          <div class="apt-step-row"><span class="apt-step-dot">2</span> {{ t("apt_step2") }}</div>
+          <div class="apt-step-row"><span class="apt-step-dot">3</span> {{ t("apt_step3") }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: booking widget (телефон — перший після заголовка) -->
+    <div class="col-lg-5 order-1 order-lg-2">
+      <div class="booking-widget" id="booking-widget">
+
+        <div class="widget-price-header">
+          <div>
+            <span class="widget-price"><b>{{ apt.price }}</b></span>
+            <span class="widget-per-night">{{ t("uah") }} / {{ t("per_night") }}</span>
+          </div>
+          <span class="widget-rating"><i class="bi bi-star-fill"></i> 9,6</span>
+        </div>
+
+        <div class="widget-benefit"><i class="bi bi-patch-check-fill" aria-hidden="true"></i> {{ t("widget_direct_benefit") }}</div>
+
+        <form class="booking-form" method="POST" action="/book/{{ apt.id }}" id="booking-form"
+              data-hint-past="{{ t('cal_day_past') }}" data-hint-booked="{{ t('cal_day_booked') }}"
+              data-hint-checkin-first="{{ t('cal_pick_checkin_first') }}" data-hint-before-checkin="{{ t('cal_day_before_checkin') }}"
+              data-hint-through-booked="{{ t('cal_checkout_through_booked') }}">
+
+          <!-- Dates -->
+          <div class="widget-field">
+            <div class="widget-dates-row">
+              <div class="widget-date-half">
+                <label class="widget-label" for="picker-checkin">{{ t("check_in") }}</label>
+                <input type="text" id="picker-checkin" class="widget-input" placeholder="{{ t('date_placeholder') }}" readonly aria-label="{{ t('check_in') }}">
+                <input type="hidden" name="check_in" id="f-check-in">
+              </div>
+              <div class="widget-date-half">
+                <label class="widget-label" for="picker-checkout">{{ t("check_out") }}</label>
+                <input type="text" id="picker-checkout" class="widget-input" placeholder="{{ t('date_placeholder') }}" readonly aria-label="{{ t('check_out') }}">
+                <input type="hidden" name="check_out" id="f-check-out">
+              </div>
+            </div>
+            <p class="widget-next-hint" id="widget-next-hint" role="status" hidden>{{ t("hero_pick_checkout") }}</p>
+            <div class="qp-chips" id="qp-chips" aria-label="{{ t('quick_nights') }}">
+              <button type="button" class="qp-chip" data-nights="2">2 {{ t("nights_plural") }}</button>
+              <button type="button" class="qp-chip" data-nights="3">3 {{ t("nights_plural") }}</button>
+              <button type="button" class="qp-chip" data-nights="7">{{ t("week_word") }}</button>
+            </div>
+          </div>
+
+          <!-- Guests -->
+          <div class="widget-field">
+            <div class="widget-guest-field">
+              <label class="widget-label" id="guests-label" style="margin:0;">{{ t("guests") }}</label>
+              <div class="guest-counter" role="group" aria-labelledby="guests-label" data-max="{{ guests_max }}">
+                <button type="button" class="guest-btn" id="guest-minus" aria-label="{{ t('fewer_guests') }}">−</button>
+                <span id="guest-display" aria-live="off">2</span>
+                <button type="button" class="guest-btn" id="guest-plus" aria-label="{{ t('more_guests') }}">+</button>
+                <input type="hidden" name="guests" id="f-guests" value="2">
+              </div>
+            </div>
+            <p class="guests-max-hint" id="guest-max-hint" role="status" hidden>{{ t("guests_max_hint") | replace("{n}", guests_max | string) }}</p>
+          </div>
+          {# SMS deep link before dates: the coupon field lives under the price (C6), so say where it is #}
+          <p class="coupon-prompt" id="coupon-prompt" hidden><span aria-hidden="true">🎁</span> {{ t("coupon_after_dates") }}</p>
+
+          <!-- Price breakdown (height-animated reveal). Optional rows reveal 0fr→1fr and are NEVER display:none'd again
+               after the first show (audit 31.08 — the display toggles were the «UI скачет»). -->
+          <div class="pb-reveal">
+            <div class="pb-reveal-inner">
+              <div class="price-breakdown" id="price-breakdown">
+                <div class="pb-row">
+                  <span id="pb-nights-label"></span>
+                  <span id="pb-nights-price"></span>
+                </div>
+                <div class="pb-sub" id="pb-nights-sub"></div>
+                <div class="pb-row">
+                  <span>{{ t("tourist_tax") }}</span>
+                  <span id="pb-tax"></span>
+                </div>
+                <div class="pb-opt" id="pb-coupon-row" hidden>
+                  <div class="pb-row pb-coupon">
+                    <span><span aria-hidden="true">🎁</span> {{ t("coupon_line") }}</span>
+                    <span id="pb-coupon"></span>
+                  </div>
+                </div>
+                {# порівняння з ВИСТАВЛЕНОЮ ціною Booking (price1, до знижок Genius) — сервер віддає booking_total лише коли є виграш #}
+                <div class="pb-opt" id="pb-booking-row" hidden>
+                  <div class="pb-row pb-booking-row">
+                    <span>{{ t("booking_price_row") }}</span>
+                    <span id="pb-booking" class="pb-booking-strike"></span>
+                  </div>
+                </div>
+                <div class="pb-opt" id="pb-save-row" hidden>
+                  <div class="pb-row pb-save-row">
+                    <span><i class="bi bi-piggy-bank" aria-hidden="true"></i> {{ t("you_save") }}</span>
+                    <span id="pb-save"></span>
+                  </div>
+                </div>
+                <div class="pb-row pb-total">
+                  <span><strong>{{ t("total") }}</strong></span>
+                  <span id="pb-total"></span>
+                </div>
+                <!-- Honest scarcity: revealed by JS ONLY when the server quote says the other apartment is booked -->
+                <div class="pb-opt" id="pb-scarcity" hidden>
+                  <div class="pb-scarcity"><span aria-hidden="true">🔥</span> {{ t("only_one_left") }}</div>
+                </div>
+              </div>
+              <p id="pb-announce" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></p>
+            </div>
+          </div>
+
+          <!-- Returning-guest coupon: under the price (C6) so its reveal never pushes the numbers the guest is reading -->
+          <div class="widget-field coupon-field coupon-field--priced">
+            <div class="coupon-field-inner">
+              <button type="button" class="coupon-toggle" id="coupon-toggle" aria-expanded="false" aria-controls="coupon-body">
+                <i class="bi bi-gift" aria-hidden="true"></i> {{ t("coupon_have") }}
+              </button>
+              <div class="coupon-body" id="coupon-body" hidden>
+                <div class="coupon-body-inner">
+                  <div class="coupon-row-input">
+                    <input type="tel" id="coupon-phone-input" class="text-input" placeholder="{{ t('phone_placeholder') }}"
+                           inputmode="tel" autocomplete="tel" enterkeyhint="done" aria-label="{{ t('coupon_phone_hint') }}">
+                    <button type="button" class="btn-coupon-apply" id="coupon-apply"><span>{{ t("coupon_apply") }}</span></button>
+                  </div>
+                  <small class="coupon-hint">{{ t("coupon_phone_hint") }}</small>
+                  <p class="coupon-status" id="coupon-status" role="status" aria-live="polite" aria-atomic="true"></p>
+                </div>
+              </div>
+              <input type="hidden" name="coupon_phone" id="f-coupon-phone">
+              <!-- "1" only while the LAST rendered quote showed the -500 line —
+                   tells the backoffice to fail closed (409) if the coupon is
+                   gone by book time instead of silently charging full price -->
+              <input type="hidden" name="coupon_expected" id="f-coupon-expected" value="">
+            </div>
+          </div>
+          {% if other_apts %}
+          <!-- Spec 108: more apartments for the same dates, one Monobank payment. Shown once dates are chosen;
+               every number in #group-breakdown comes from /api/quote-group — JS never adds prices up itself. -->
+          <div class="widget-field group-field" id="group-field" hidden>
+            <button type="button" class="coupon-toggle group-toggle" id="group-toggle" aria-expanded="false" aria-controls="group-body">
+              <i class="bi bi-plus-circle" aria-hidden="true"></i> {{ t("group_add_toggle") }}
+            </button>
+            <div class="group-body" id="group-body" hidden>
+              <p class="group-hint">{{ t("group_hint") }}</p>
+              <ul class="group-list">
+                {% for o in other_apts %}
+                <li class="group-room" data-apt-id="{{ o.id }}">
+                  <label class="group-room-check">
+                    <input type="checkbox" class="group-room-cb" value="{{ o.id }}">
+                    <span class="group-room-name">{{ o.name }}</span>
+                  </label>
+                  <span class="group-room-busy" hidden>{{ t("group_room_busy") }}</span>
+                  <select class="group-room-guests" aria-label="{{ t('guests') }}: {{ o.name }}" disabled>
+                    {% for n in range(1, guests_max + 1) %}<option value="{{ n }}"{% if n == 2 %} selected{% endif %}>{{ n }} {{ t("group_guests_short") }}</option>{% endfor %}
+                  </select>
+                </li>
+                {% endfor %}
+              </ul>
+              <div class="price-breakdown group-breakdown" id="group-breakdown" hidden>
+                <div id="group-rows"></div>
+                <div class="pb-row">
+                  <span>{{ t("tourist_tax") }}</span>
+                  <span id="group-tax"></span>
+                </div>
+                <div class="pb-row pb-total">
+                  <span><strong id="group-total-label">{{ t("total") }}</strong></span>
+                  <span id="group-total"></span>
+                </div>
+              </div>
+              <p class="group-status" id="group-status" role="status" aria-live="polite" aria-atomic="true"></p>
+            </div>
+            <div id="group-inputs"></div>
+          </div>
+          {% endif %}
+          <!-- Idempotency-Key of this booking attempt: main.js writes a NEW UUID on every
+               submit; empty (no JS) — the site server makes its own -->
+          <input type="hidden" name="idempotency_key" id="f-idempotency-key" value="">
+
+          <!-- Stage 2: guest details + book (height-animated reveal after dates valid) -->
+          <div class="widget-stage-2">
+            <div class="widget-stage-2-inner">
+              <div class="widget-field">
+                <label class="widget-label" for="w-name">{{ t("your_name") }}</label>
+                <input type="text" name="name" id="w-name" class="text-input" placeholder="{{ t('name_placeholder') }}" required autocomplete="name">
+              </div>
+              <div class="widget-field">
+                <label class="widget-label" for="w-phone">{{ t("your_phone") }}</label>
+                <input type="tel" name="phone" id="w-phone" class="text-input" placeholder="{{ t('phone_placeholder') }}" required inputmode="tel" autocomplete="tel">
+              </div>
+              <button type="submit" class="btn-book" id="btn-book" disabled>
+                <i class="bi bi-lock-fill" aria-hidden="true"></i> <span id="btn-book-txt">{{ t("proceed_to_payment") }}</span>
+              </button>
+              <div class="btn-book-sub">{{ t("book_subline") }}</div>
+            </div>
+          </div>
+
+          <p class="widget-hint" id="widget-hint"><span>{{ t("select_dates_first") }}</span></p>
+        </form>
+
+        <div class="payment-trust">
+          <i class="bi bi-lock" aria-hidden="true"></i>
+          <span>{{ t("secure_payment") }}</span>
+          <span class="pay-sep">·</span>
+          <span class="pay-badge">Visa</span>
+          <span class="pay-badge">Mastercard</span>
+          <span class="pay-badge">Apple&nbsp;Pay</span>
+          <span class="pay-badge">G&nbsp;Pay</span>
+        </div>
+
+      </div>
+
+      <!-- Compact perks row -->
+      <div class="widget-perks">
+        <span class="perk-item"><i class="bi bi-check2" aria-hidden="true"></i> {{ t("perk_best_price") }}</span>
+        <span class="perk-sep" aria-hidden="true">·</span>
+        <span class="perk-item"><i class="bi bi-check2" aria-hidden="true"></i> {{ t("perk_flexible_cancel") }}</span>
+        <span class="perk-sep" aria-hidden="true">·</span>
+        <span class="perk-item"><i class="bi bi-check2" aria-hidden="true"></i> {{ t("perk_direct_host") }}</span>
+      </div>
+
+      <div class="host-card">
+        <span class="host-avatar">І</span>
+        <div>
+          <div class="host-name">{{ t("host_name") }}</div>
+          <div class="host-meta">{{ t("host_response") }}</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Mobile sticky booking bar -->
+<aside class="sticky-book-bar" id="stickyBookBar" role="complementary" aria-label="{{ t('book_now') }}">
+  <div class="sticky-book-price">
+    <span class="price-value" id="stickyPrice">{{ apt.price }}</span>
+    <span class="price-unit" id="stickyUnit">{{ t("uah") }} / {{ t("per_night") }}</span>
+  </div>
+  <button class="sticky-book-btn" id="stickyBtn" type="button">{{ t("book_now") }}</button>
+</aside>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Gallery carousel. With a desktop collage the swiper is CSS-hidden ≥992px,
+// so init lazily on first moment the viewport is actually below the breakpoint
+// (covers tablet rotation / window resize after load).
+var heroEl = document.querySelector('.apt-hero-swiper');
+var aptSwiper = null;
+function initAptSwiper() {
+  if (aptSwiper || !heroEl) return;
+  var galleryTotal = heroEl.querySelectorAll('.swiper-slide:not(.swiper-slide-duplicate)').length;
+  aptSwiper = new Swiper(heroEl, {
+    loop: galleryTotal > 1,
+    speed: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 700,
+    grabCursor: true,
+    navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev' },
+    pagination: { el: '.swiper-pagination', clickable: true },
+    on: {
+      slideChange: function () {
+        var el = document.getElementById('galleryCountText');
+        if (el && galleryTotal > 0) el.textContent = (this.realIndex + 1) + ' / ' + galleryTotal;
+      }
+    }
+  });
+}
+if (heroEl) {
+  var collageEl = document.querySelector('.apt-collage');
+  if (!collageEl) {
+    initAptSwiper();
+  } else {
+    var mqMobile = window.matchMedia('(max-width: 991px)');
+    if (mqMobile.matches) { initAptSwiper(); }
+    else {
+      var onMq = function (e) { if (e.matches) initAptSwiper(); };
+      if (mqMobile.addEventListener) mqMobile.addEventListener('change', onMq);
+      else mqMobile.addListener(onMq);
+    }
+  }
+}
+</script>
+{% endblock %}

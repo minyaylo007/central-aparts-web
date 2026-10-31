@@ -1,0 +1,21 @@
+{% extends "public_base.html" %}
+{% block title %}{{ code }} — Central Square Apartments{% endblock %}
+{% block content %}
+<div class="error-page" data-testid="error-page" data-error-code="{{ code }}">
+  <div class="container">
+    <div class="error-card">
+      <div class="error-code" aria-hidden="true">{{ code }}</div>
+      <h1 class="error-title">
+        {% if code == 404 %}{{ t("error_page_not_found_title") }}{% else %}{{ t("error_server_title") }}{% endif %}
+      </h1>
+      <p class="error-msg">{{ t("error_try_again") }}</p>
+      {# три шляхи назад замість одного (аудит 21.10, п.17) #}
+      <div class="error-actions">
+        <a href="/" class="btn-clay">{{ t("back_home") }}</a>
+        <a href="/#apartments" class="btn-outline">{{ t("error_choose_apartments") }}</a>
+        <a href="https://t.me/minyaylo" target="_blank" rel="noopener" class="btn-outline"><i class="bi bi-telegram" aria-hidden="true"></i> {{ t("error_write_host") }}</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

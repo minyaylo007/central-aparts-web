@@ -1,0 +1,80 @@
+{% extends "stats_base.html" %}
+{% block title %}Тепловая карта{% endblock %}
+{% block head %}
+<style>
+  .heat-box { position: relative; overflow: hidden; border: 1px solid var(--line); background: var(--porcelain); }
+  .heat-box iframe, .heat-box canvas { position: absolute; top: 0; left: 0; transform-origin: 0 0; border: 0; }
+  .heat-box canvas { pointer-events: none; }
+  .heat-row { display: flex; gap: 16px; align-items: flex-start; }
+  .heat-side { flex: 0 0 200px; }
+  .heat-main { flex: 1; min-width: 0; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin: 0 4px 0 12px; vertical-align: middle; }
+  @media (max-width: 760px) { .heat-row { flex-direction: column; } .heat-side { flex: none; width: 100%; } }
+</style>
+{% endblock %}
+{% block body %}
+<div class="stats-top">
+  <h1>Тепловая карта</h1>
+  <nav>
+    <a href="{{ url_for('analytics.stats_home', days=days) }}">← Панель</a>
+    <a href="?path={{ path | urlencode }}&dev=d&days={{ days }}" class="{{ 'on' if device == 'd' }}">Компьютер</a>
+    <a href="?path={{ path | urlencode }}&dev=m&days={{ days }}" class="{{ 'on' if device == 'm' }}">Телефон</a>
+    <form method="get" style="margin:0">
+      <input type="hidden" name="dev" value="{{ device }}"><input type="hidden" name="days" value="{{ days }}">
+      <select name="path" onchange="this.form.submit()" class="stats-btn">
+        {% for p in pages %}<option value="{{ p.path }}" {{ 'selected' if p.path == path }}>{{ p.path }} ({{ p.n }})</option>{% endfor %}
+        {% if path not in pages | map(attribute='path') %}<option value="{{ path }}" selected>{{ path }}</option>{% endif %}
+      </select>
+    </form>
+  </nav>
+</div>
+<p class="hint legend">Кликов: {{ points | length }} за {{ days }} дн. <i style="background:var(--clay)"></i>клик <i style="background:var(--error)"></i>злой <i style="background:var(--warning)"></i>мёртвый.
+  Страница показана без скриптов, поэтому раскрывающиеся блоки могут выглядеть иначе.</p>
+<div class="heat-row">
+  <div class="heat-side card-s">
+    <h2>Прокрутка</h2>
+    <p class="hint">Доля просмотров ({{ scroll.views }}), дошедших до глубины.</p>
+    <table class="t">
+      {% for b in scroll.bands %}<tr><td class="num">{{ b.pct }} %</td><td style="width:100%"><div class="bar alt" style="width:{{ b.reached }}%" title="{{ b.reached }} %"></div></td><td class="num">{{ b.reached }} %</td></tr>{% endfor %}
+    </table>
+  </div>
+  <div class="heat-main">
+    <div class="heat-box" id="box">
+      <iframe id="frame" sandbox="allow-same-origin" src="{{ path }}" title="Страница" scrolling="no"></iframe>
+      <canvas id="heat"></canvas>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  var PTS = {{ points | tojson }}, W = {{ 390 if device == 'm' else 1280 }};
+  var box = document.getElementById('box'), fr = document.getElementById('frame'), cv = document.getElementById('heat');
+  var css = getComputedStyle(document.documentElement);
+  var col = { c: css.getPropertyValue('--clay'), rg: css.getPropertyValue('--error'), dd: css.getPropertyValue('--warning') };
+  function draw() {
+    var doc = null, H = 3000;
+    try { doc = fr.contentDocument; } catch (e) {}
+    if (doc && doc.documentElement) {
+      var st = doc.createElement('style');
+      st.textContent = '.reveal{opacity:1!important;transform:none!important}';
+      doc.head.appendChild(st);
+      H = Math.max(doc.documentElement.scrollHeight, 600);
+    }
+    var k = Math.min(1, box.clientWidth / W);
+    fr.style.width = W + 'px'; fr.style.height = H + 'px';
+    cv.width = W; cv.height = H;
+    fr.style.transform = cv.style.transform = 'scale(' + k + ')';
+    box.style.height = Math.ceil(H * k) + 'px';
+    var g = cv.getContext('2d');
+    g.clearRect(0, 0, W, H);
+    PTS.forEach(function (p) {
+      g.globalAlpha = p[2] === 'c' ? 0.35 : 0.8;
+      g.fillStyle = col[p[2]] || col.c;
+      g.beginPath(); g.arc(p[0] * W, p[1] * W, p[2] === 'c' ? 9 : 11, 0, 7); g.fill();
+    });
+  }
+  fr.addEventListener('load', function () { setTimeout(draw, 300); });
+  window.addEventListener('resize', draw);
+})();
+</script>
+{% endblock %}

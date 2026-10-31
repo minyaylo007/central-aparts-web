@@ -1,0 +1,19 @@
+{
+  "name": "central-aparts-site-smoke",
+  "private": true,
+  "description": "Playwright-смока публічного сайту: SMOKE_BACKEND=fake (без мережі) або live (читаючі сценарії проти бойового бек-офісу)",
+  "scripts": {
+    "test": "playwright test",
+    "test:live": "SMOKE_BACKEND=live playwright test",
+    "list": "playwright test --list",
+    "browsers": "umask 027 && node -r ./browsers-env.cjs ./node_modules/@playwright/test/cli.js install chromium",
+    "browsers:where": "node -r ./browsers-env.cjs -e \"console.log(require('playwright').chromium.executablePath())\""
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "bootstrap": "5.3.3",
+    "bootstrap-icons": "1.11.3",
+    "flatpickr": "4.6.13",
+    "swiper": "12.2.0"
+  }
+}

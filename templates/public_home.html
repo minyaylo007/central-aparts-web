@@ -1,0 +1,483 @@
+{% extends "public_base.html" %}
+{% set critical_group = 'home' %}
+
+{% block title %}Central Square Apartments — Дизайнерські апартаменти у Чернівцях{% endblock %}
+{% block meta_desc %}Дизайнерські апартаменти в центрі Чернівців. Головна 51, Центральна площа. Самостійний заїзд 24/7, онлайн оплата карткою. Бронюйте напряму.{% endblock %}
+
+{% block nav_class %}nav-transparent{% endblock %}
+
+{% block preload_lcp %}
+{# LCP головної — фото hero. На вузькому телефоні видно лише середину кадру (object-fit: cover),
+   тож туди йде центральний кроп 640×683 (ті самі пікселі, удвічі менше байтів); межа 520 px —
+   там видима ширина ще ≤ 640 пікс. оригіналу. media тут і в <source> — однакові. #}
+<link rel="preload" as="image" href="/static/img/hero-640.webp" media="(max-width: 520px)" fetchpriority="high">
+<link rel="preload" as="image" href="/static/img/hero.webp" media="(min-width: 520.02px)" fetchpriority="high">
+{% endblock %}
+
+{% block head_extra %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "LodgingBusiness",
+  "name": "Central Square Apartments",
+  "url": {{ config.SITE_URL | tojson }},
+  "image": {{ (config.SITE_URL ~ "/static/img/hero.webp") | tojson }},
+  "telephone": "+380502648312",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "вул. Головна, 51",
+    "addressLocality": "Чернівці",
+    "addressCountry": "UA"
+  },
+  "geo": { "@type": "GeoCoordinates", "latitude": 48.2908, "longitude": 25.9344 },
+  "priceRange": "₴₴",
+  "checkinTime": "14:00",
+  "checkoutTime": "11:00"
+}
+</script>
+{% endblock %}
+
+{% block content %}
+{# Редизайн 21.10: шлях «перший екран → квартира → дати» коротший; квартири одразу після героя.
+   Ціни — лише з каталогу бек-офісу (apt.price), шаблон їх тільки показує. #}
+{% set min_price = apartments | map(attribute='price') | min if apartments else none %}
+{% macro uah_num(n) %}{{ '{:,}'.format(n | int) | replace(',', ' ') }}{% endmacro %}
+
+<!-- ============================================================
+     HERO — компактний, контент зліва, біла панель пошуку
+     ============================================================ -->
+<section class="hero" aria-label="{{ t('hero_aria') }}">
+  <div class="hero-media">
+    <picture>
+      <source media="(max-width: 520px)" srcset="/static/img/hero-640.webp" width="640" height="683">
+      <img class="hero-bg" src="/static/img/hero.webp" alt="{{ t('hero_img_alt') }}" width="1024" height="683" fetchpriority="high">
+    </picture>
+  </div>
+  <div class="hero-overlay"></div>
+
+  <div class="container hero-inner">
+    <div class="coupon-banner" id="coupon-banner" hidden>{{ t("coupon_banner") }}</div>
+    <span class="hero-eyebrow">{{ t("hero_eyebrow") }}</span>
+    <h1 class="hero-title">{{ t("hero_headline") }}</h1>
+    <p class="hero-subtitle">{{ t("hero_lead") }}</p>
+    <ul class="hero-trust">
+      <li><i class="bi bi-star-fill" aria-hidden="true"></i> {{ t("hero_rating") }}</li>
+      <li>{{ t("self_checkin_short") }}</li>
+      <li class="hero-trust-opt">{{ t("location_badge1") }}</li>
+      {% if min_price %}<li class="hero-trust-price">{{ t("from") }} {{ uah_num(min_price) }} {{ t("uah") }}/{{ t("night") }}</li>{% endif %}
+    </ul>
+
+    <form class="hero-search" id="heroSearch" autocomplete="off" aria-label="{{ t('hero_search_aria') }}"
+          data-hint-past="{{ t('cal_day_past') }}" data-hint-before-checkin="{{ t('cal_day_before_checkin') }}">
+      <label class="hsearch-field">
+        <span class="hsearch-label">{{ t("check_in") }}</span>
+        <input type="text" class="hsearch-input" id="hs-checkin" placeholder="{{ t('date_placeholder') }}" readonly>
+      </label>
+      <label class="hsearch-field">
+        <span class="hsearch-label">{{ t("check_out") }}</span>
+        <input type="text" class="hsearch-input" id="hs-checkout" placeholder="{{ t('date_placeholder') }}" readonly>
+      </label>
+      <div class="hsearch-field hsearch-guests-field">
+        <span class="hsearch-label">{{ t("guests") }}</span>
+        <div class="hsearch-guests" data-max="{{ guests_max }}">
+          <button type="button" class="hsearch-step" id="hs-minus" aria-label="{{ t('fewer_guests') }}">−</button>
+          <span class="hsearch-count" id="hs-count" aria-live="polite">2</span>
+          <button type="button" class="hsearch-step" id="hs-plus" aria-label="{{ t('more_guests') }}">+</button>
+        </div>
+      </div>
+      {% if apartments %}
+      <label class="hsearch-field hsearch-apt-field">
+        <span class="hsearch-label">{{ t("apartment_label") }}</span>
+        <select class="hsearch-select" id="hs-apt" data-busy-word="{{ t('busy_short') }}">
+          {% for apt in apartments %}
+          <option value="{{ apt.id }}">{{ apt.name }} · {{ apt.price }} {{ t("uah") }}/{{ t("night") }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      {% endif %}
+      <button type="submit" class="hsearch-submit"><i class="bi bi-search" aria-hidden="true"></i> {{ t("book_now") }}</button>
+    </form>
+    {# 30.10: на телефоні календар виїзду після заїзду сам не відкривається — кажемо, що далі (docs/PATTERNS.md §8b) #}
+    <p class="hsearch-hint" id="hs-hint" role="status" hidden>{{ t("hero_pick_checkout") }}</p>
+    {# 30.10: «+» на максимумі гостей — пояснення, а не тиша (docs/PATTERNS.md §8a, розбір (14)) #}
+    <p class="hsearch-hint" id="hs-guests-hint" role="status" hidden>{{ t("guests_max_hint") | replace("{n}", guests_max | string) }}</p>
+  </div>
+</section>
+
+
+<!-- ============================================================
+     APARTMENTS — картки по дві, одразу після героя
+     ============================================================ -->
+<section class="section section--porcelain" id="apartments">
+  <div class="container">
+    <div class="section-head section-head--row">
+      <div>
+        <span class="kicker">{{ t("apartments") }}</span>
+        <h2 class="section-title">{{ t("apartments_section_title") }}</h2>
+      </div>
+      <p class="section-subtitle">{{ t("apartments_section_subtitle") }}</p>
+    </div>
+
+    <!-- Date-search result summary (filled by hero search JS) -->
+    <div class="avail-summary" id="availSummary" hidden
+         data-apt-one="{{ t('apt_one') }}" data-apt-few="{{ t('apt_few') }}">
+      <div class="avail-summary-free" id="availSummaryFree" hidden>
+        <i class="bi bi-check-circle" aria-hidden="true"></i>
+        <span aria-live="polite">{{ t("avail_summary_free") }} <b id="availCount"></b></span>
+      </div>
+      <div class="avail-summary-none" id="availSummaryNone" hidden>
+        <i class="bi bi-calendar-x" aria-hidden="true"></i>
+        <span aria-live="polite">{{ t("avail_none") }}
+          <a href="https://t.me/minyaylo" target="_blank" rel="noopener">Telegram @minyaylo</a></span>
+      </div>
+      <button type="button" class="avail-reset" id="availReset" hidden>{{ t("show_all") }}</button>
+    </div>
+
+    {% if apartments %}
+      <div class="apt-rows">
+        {% for apt in apartments %}
+        <article class="apt-row">
+          <div class="apt-row-media">
+            {% if apt.photos %}
+            <div class="swiper apt-photo-swiper">
+              <div class="swiper-wrapper">
+                {% for photo in apt.photos %}
+                <div class="swiper-slide">
+                  {# src — лише після load (див. scripts нижче): нативний lazy на телефоні тягнув усі
+                     фото карток (~400 КБ) ще до картинки першого екрана #}
+                  {# фото веде туди ж, куди кнопка картки: href з датами пошуку переписує main.js разом з нею;
+                     після свайпу click гасить сам swiper (preventClicks). tabindex=-1 — таб-стоп лишається на кнопці #}
+                  <a href="/apartment/{{ apt.id }}?book=1" class="apt-photo-link" tabindex="-1"
+                     aria-label="{{ t('apt_photo_link') }} {{ apt.name }}">
+                  <img data-src="{{ photo }}" alt="{{ apt.name }}" class="apt-row-img" loading="lazy" decoding="async" width="800" height="600">
+                  <noscript><img src="{{ photo }}" alt="{{ apt.name }}" class="apt-row-img" width="800" height="600"></noscript>
+                  </a>
+                </div>
+                {% endfor %}
+              </div>
+              <div class="swiper-pagination"></div>
+            </div>
+            {% else %}
+            <div class="apt-row-placeholder"><i class="bi bi-building" aria-hidden="true"></i></div>
+            {% endif %}
+          </div>
+
+          <div class="apt-row-body">
+            <div class="apt-row-head">
+              <h3 class="apt-row-name">{{ apt.name }}</h3>
+              <div class="apt-row-price">
+                <span class="price-value">{{ uah_num(apt.price) }}</span>
+                <span class="price-unit">{{ t("uah") }} / {{ t("per_night") }}</span>
+              </div>
+            </div>
+            <p class="apt-row-meta"><i class="bi bi-star-fill" aria-hidden="true"></i> {{ t("hero_rating") }} · {{ t("self_checkin_short") }}</p>
+
+            <div class="apt-avail" data-apt-avail
+                 data-free="{{ t('avail_free') }}" data-busy="{{ t('avail_busy') }}" hidden>
+              <i class="bi bi-check-circle" aria-hidden="true"></i>
+              <span class="apt-avail-text" aria-live="polite"></span>
+            </div>
+
+            {% if apt.amenities %}
+            <ul class="apt-amenity-list">
+              {% for amenity in apt.amenities[:4] %}
+              <li class="apt-amenity">{{ amenity }}</li>
+              {% endfor %}
+            </ul>
+            {% endif %}
+
+            <a href="/apartment/{{ apt.id }}?book=1" class="btn-clay btn-block-full apt-detail-link" data-apt="{{ apt.id }}">
+              {{ t("view_details") }} <i class="bi bi-arrow-right" aria-hidden="true"></i>
+            </a>
+          </div>
+        </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-center empty-note">{{ t("error_loading") }}</p>
+    {% endif %}
+  </div>
+</section>
+
+
+<!-- ============================================================
+     BENEFITS — стрічка з чотирьох аргументів + рядок для військових
+     ============================================================ -->
+<section class="section section--panel section--tight" id="benefits">
+  <div class="container">
+    <h2 class="visually-hidden">{{ t("benefits_title") }}</h2>
+    <div class="benefits-grid">
+      <div class="benefit">
+        <span class="benefit-icon"><i class="bi bi-geo-alt" aria-hidden="true"></i></span>
+        <div>
+          <h3 class="benefit-title">{{ t("benefit1_title") }}</h3>
+          <p class="benefit-desc">{{ t("benefit1_desc") }}</p>
+        </div>
+      </div>
+      <div class="benefit">
+        <span class="benefit-icon"><i class="bi bi-door-open" aria-hidden="true"></i></span>
+        <div>
+          <h3 class="benefit-title">{{ t("benefit2_title") }}</h3>
+          <p class="benefit-desc">{{ t("benefit2_desc") }}</p>
+        </div>
+      </div>
+      <div class="benefit">
+        <span class="benefit-icon"><i class="bi bi-house-heart" aria-hidden="true"></i></span>
+        <div>
+          <h3 class="benefit-title">{{ t("benefit3_title") }}</h3>
+          <p class="benefit-desc">{{ t("benefit3_desc") }}</p>
+        </div>
+      </div>
+      <div class="benefit">
+        <span class="benefit-icon"><i class="bi bi-shield-check" aria-hidden="true"></i></span>
+        <div>
+          <h3 class="benefit-title">{{ t("benefit4_title") }}</h3>
+          <p class="benefit-desc">{{ t("benefit4_desc") }}</p>
+        </div>
+      </div>
+    </div>
+
+    <p class="military-discount">
+      <span class="ua-flag" aria-hidden="true"></span>
+      <b>{{ t("military_discount_title") }}</b>
+      <span class="military-sub">{{ t("military_discount_sub") }}</span>
+    </p>
+  </div>
+</section>
+
+
+<!-- ============================================================
+     HOW IT WORKS — self check-in (espresso band)
+     ============================================================ -->
+<section class="section section--espresso" id="checkin">
+  <div class="container">
+    <div class="section-head reveal">
+      <span class="kicker">{{ t("checkin_section_title") }}</span>
+      <h2 class="section-title">{{ t("checkin_heading") }}</h2>
+    </div>
+
+    <ol class="checkin-steps">
+      <li class="checkin-step reveal">
+        <span class="step-num" aria-hidden="true">1</span>
+        <h3 class="step-title">{{ t("checkin_step1_title") }}</h3>
+        <p class="step-desc">{{ t("checkin_step1_desc") }}</p>
+      </li>
+      <li class="checkin-step reveal" style="--d:120ms">
+        <span class="step-num" aria-hidden="true">2</span>
+        <h3 class="step-title">{{ t("checkin_step2_title") }}</h3>
+        <p class="step-desc">{{ t("checkin_step2_desc") }}</p>
+      </li>
+      <li class="checkin-step reveal" style="--d:240ms">
+        <span class="step-num" aria-hidden="true">3</span>
+        <h3 class="step-title">{{ t("checkin_step3_title") }}</h3>
+        <p class="step-desc">{{ t("checkin_step3_desc") }}</p>
+      </li>
+    </ol>
+  </div>
+</section>
+
+
+<!-- ============================================================
+     REVIEWS + TRUST — оцінка Booking і чому безпечно бронювати напряму
+     ============================================================ -->
+<section class="section section--porcelain" id="reviews">
+  <div class="container">
+    <div class="reviews-head reveal">
+      {# 31.08: якір довіри — Booking 9,6. Правило «не вигадуємо чужих слів» діє: без цитат,
+         лише бейдж; зовнішній лінк на Booking не ставимо — не віддаємо прямого
+         відвідувача каналу з комісією 15%. #}
+      <div class="booking-badge" aria-label="Booking.com 9.6">
+        <span class="booking-badge-score">9,6</span>
+        <span class="booking-badge-txt">Booking.com<br>100+ {{ 'відгуків · «Чудово»' if lang == 'ua' else 'reviews · “Wonderful”' }}</span>
+      </div>
+      <div>
+        <h2 class="section-title">{{ t("reviews_title") }}</h2>
+        <p class="section-subtitle">{{ t("reviews_subtitle") }}</p>
+      </div>
+    </div>
+
+    <div class="trust-grid">
+      <div class="trust-item reveal">
+        <span class="trust-icon"><i class="bi bi-shield-lock" aria-hidden="true"></i></span>
+        <h3 class="trust-item-title">{{ t("trust_1_title") }}</h3>
+        <p class="trust-item-desc">{{ t("trust_1_desc") }}</p>
+      </div>
+      <div class="trust-item reveal" style="--d:90ms">
+        <span class="trust-icon"><i class="bi bi-patch-check" aria-hidden="true"></i></span>
+        <h3 class="trust-item-title">{{ t("trust_2_title") }}</h3>
+        <p class="trust-item-desc">{{ t("trust_2_desc") }}</p>
+      </div>
+      <div class="trust-item reveal" style="--d:180ms">
+        <span class="trust-icon"><i class="bi bi-headset" aria-hidden="true"></i></span>
+        <h3 class="trust-item-title">{{ t("trust_3_title") }}</h3>
+        <p class="trust-item-desc">{{ t("trust_3_desc") }}</p>
+      </div>
+      <div class="trust-item reveal" style="--d:270ms">
+        <span class="trust-icon"><i class="bi bi-tag" aria-hidden="true"></i></span>
+        <h3 class="trust-item-title">{{ t("trust_4_title") }}</h3>
+        <p class="trust-item-desc">{{ t("trust_4_desc") }}</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================================================
+     ABOUT + LOCATION — без вбудованої карти (iframe важкий і нестабільний), лише посилання
+     ============================================================ -->
+<section class="section section--cream" id="about">
+  <div class="container">
+    <div class="row align-items-center gy-5">
+      <div class="col-lg-6 reveal">
+        <span class="kicker">{{ t("about_title") }}</span>
+        <h2 class="section-title">{{ t("about_heading") }}</h2>
+        <p class="about-text about-text--lead">{{ t("about_text") }}</p>
+        <p class="about-text">{{ t("about_text2") }}</p>
+
+        <div class="about-stats">
+          <div class="stat-item">
+            <span class="stat-num">2</span>
+            <span class="stat-label">{{ t("stat_apartments") }}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-num">9,6</span>
+            <span class="stat-label">Booking.com</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-num">100+</span>
+            <span class="stat-label">{{ t("stat_guests") }}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-num">24/7</span>
+            <span class="stat-label">{{ t("stat_checkin") }}</span>
+          </div>
+        </div>
+
+        <div class="location-block" id="location">
+          <h3 class="location-title">{{ t("location_heading") }}</h3>
+          <div class="location-badges">
+            <span class="location-badge"><i class="bi bi-geo-alt" aria-hidden="true"></i>{{ t("location_badge1") }}</span>
+            <span class="location-badge"><i class="bi bi-cup-hot" aria-hidden="true"></i>{{ t("location_badge2") }}</span>
+            <span class="location-badge"><i class="bi bi-bus-front" aria-hidden="true"></i>{{ t("location_badge3") }}</span>
+          </div>
+          <a href="https://maps.google.com/?q=Holovna+Street+51,+Chernivtsi,+Ukraine" target="_blank" rel="noopener" class="btn-outline">
+            <i class="bi bi-map" aria-hidden="true"></i> {{ t("location_btn") }}
+          </a>
+        </div>
+      </div>
+
+      <div class="col-lg-6 reveal" style="--d:120ms">
+        <figure class="about-figure">
+          <img
+            src="{% if apartments and apartments[0].photos %}{{ apartments[0].photos[0] }}{% else %}/static/img/hero.webp{% endif %}"
+            alt="{{ t('about_img_alt') }}"
+            loading="lazy" decoding="async">
+          <figcaption class="about-figure-caption"><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ t("address") }}</figcaption>
+        </figure>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================================================
+     FAQ + правила — ліворуч заголовок і CTA, праворуч питання
+     ============================================================ -->
+<section class="section section--panel" id="faq">
+  <div class="container">
+    <div class="faq-layout">
+      <div class="faq-aside reveal">
+        <span class="kicker">FAQ</span>
+        <h2 class="section-title">{{ t("faq_title") }}</h2>
+        <a href="#apartments" class="btn-clay">{{ t("book_now") }}</a>
+
+        <h3 class="rules-title">{{ t("rules_title") }}</h3>
+        <ul class="rules-grid">
+          <li class="rule-item"><i class="bi bi-clock" aria-hidden="true"></i> {{ t("rule_checkin") }}</li>
+          <li class="rule-item"><i class="bi bi-clock-history" aria-hidden="true"></i> {{ t("rule_checkout") }}</li>
+          <li class="rule-item"><i class="bi bi-slash-circle" aria-hidden="true"></i> {{ t("rule_no_smoking") }}</li>
+          <li class="rule-item"><i class="bi bi-music-note-beamed" aria-hidden="true"></i> {{ t("rule_no_parties") }}</li>
+          <li class="rule-item"><i class="bi bi-moon-stars" aria-hidden="true"></i> {{ t("rule_quiet") }}</li>
+          <li class="rule-item"><i class="bi bi-heart" aria-hidden="true"></i> {{ t("rule_pets") }}</li>
+        </ul>
+      </div>
+
+      <div class="faq-list reveal">
+        {% for i in range(1, 6) %}
+        <div class="faq-item">
+          <button class="faq-question" aria-expanded="false">
+            {{ t("faq_q" ~ i) }}
+            <span class="faq-chevron"><i class="bi bi-plus-lg" aria-hidden="true"></i></span>
+          </button>
+          <div class="faq-answer">
+            <div class="faq-answer-inner">
+              <div class="faq-answer-text">{{ t("faq_a" ~ i) }}</div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================================================
+     CONTACT CTA + PARTNER
+     ============================================================ -->
+<section class="section section--cream section--tight" id="contact-cta">
+  <div class="container">
+    <div class="contact-layout reveal">
+      <div>
+        <h2 class="section-title">{{ t("contact_title") }}</h2>
+        <p class="section-subtitle">{{ t("contact_desc") }}</p>
+      </div>
+      <div class="contact-buttons">
+        <a href="https://t.me/minyaylo" target="_blank" rel="noopener" class="btn-channel btn-channel--tg">
+          <i class="bi bi-telegram" aria-hidden="true"></i> {{ t("contact_telegram") }}
+        </a>
+        <a href="tel:+380502648312" class="btn-channel btn-channel--phone">
+          <i class="bi bi-telephone" aria-hidden="true"></i> {{ t("contact_phone_cta") }}
+        </a>
+        <a href="https://instagram.com/Central_Square_CV" target="_blank" rel="noopener" class="btn-channel btn-channel--ig">
+          <i class="bi bi-instagram" aria-hidden="true"></i> @Central_Square_CV
+        </a>
+      </div>
+    </div>
+
+    <div class="partner-strip reveal">
+      <div>
+        <h2 class="partner-title">{{ t("partner_title") }}</h2>
+        <p class="partner-text">{{ t("partner_text") }}</p>
+      </div>
+      <a href="https://t.me/minyaylo" target="_blank" rel="noopener" class="btn-outline">{{ t("partner_cta") }}</a>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+
+{% block scripts %}
+<script>
+// Apartment row photo carousels
+var _reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+// autoplay desktop-only: photos sliding next to text reads as "the page jumps" on phones
+var _autoplayOk = window.innerWidth >= 768 && !_reduce;
+document.querySelectorAll('.apt-photo-swiper').forEach(function(el) {
+  var n = el.querySelectorAll('.swiper-slide').length;
+  new Swiper(el, {
+    loop: n > 1,
+    speed: 800,
+    pagination: { el: el.querySelector('.swiper-pagination'), clickable: true },
+    autoplay: (n > 1 && _autoplayOk) ? { delay: 5500, disableOnInteraction: false } : false,
+  });
+});
+// фото карток — після load; далі їх, як і раніше, підвантажує нативний loading="lazy"
+__afterLoad(function () {
+  document.querySelectorAll('img.apt-row-img[data-src]').forEach(function (img) {
+    img.src = img.getAttribute('data-src');
+    img.removeAttribute('data-src');
+  });
+});
+</script>
+{% endblock %}

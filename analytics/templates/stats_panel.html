@@ -1,0 +1,138 @@
+{% extends "stats_base.html" %}
+{% macro dev(d) %}{{ 'телефон' if d == 'm' else ('компьютер' if d == 'd' else '?') }}{% endmacro %}
+{% macro vital(v, good, poor, unit='') %}{% if v is none %}<span class="muted">—</span>{% elif v <= good %}<span class="ok">{{ v }}{{ unit }} · хорошо</span>{% elif v <= poor %}<span class="warn">{{ v }}{{ unit }} · средне</span>{% else %}<span class="bad">{{ v }}{{ unit }} · плохо</span>{% endif %}{% endmacro %}
+{% block body %}
+<div class="stats-top">
+  <h1>Статистика сайта</h1>
+  <nav>
+    {% for d in (1, 7, 30, 90) %}<a href="?days={{ d }}" class="{{ 'on' if d == days }}">{{ 'сегодня' if d == 1 else d ~ ' дн.' }}</a>{% endfor %}
+    <a href="{{ url_for('analytics.stats_heat', days=days) }}">Тепловые карты</a>
+    <form method="post" action="{{ url_for('analytics.stats_logout') }}" style="margin:0"><button class="stats-btn" type="submit">Выйти</button></form>
+  </nav>
+</div>
+
+<div class="tiles">
+  <div class="tile"><b>{{ overview.people }}</b><span>людей (сессий с действием)</span></div>
+  <div class="tile"><b>{{ overview.mobile }}</b><span>из них с телефона</span></div>
+  <div class="tile"><b>{{ overview.pages }}</b><span>просмотров страниц людьми</span></div>
+  <div class="tile"><b>{{ overview.total - overview.people - overview.bots }}</b><span>открыли и ушли без действий</span></div>
+  <div class="tile"><b>{{ overview.bots }}</b><span>ботов (автобраузеры)</span></div>
+</div>
+<p class="hint muted" style="margin-top:-8px">Боты по user-agent не сохраняются вовсе; здесь — те, кто выдал себя иначе. «Люди» — был клик, прокрутка, фокус поля или шаг брони.</p>
+
+<div class="card-s">
+  <h2>Люди по дням</h2>
+  {% set mx = (by_day | map(attribute='people') | max) or 1 %}
+  <div class="cols" role="img" aria-label="Люди по дням">
+    {% for r in by_day %}<div style="height:{{ (100 * r.people / mx) | round(1) }}%" title="{{ r.day }}: людей {{ r.people }}, без действий {{ r.passive }}, ботов {{ r.bots }}"></div>{% endfor %}
+  </div>
+  <div class="axis"><span>{{ by_day[0].day }}</span><span>максимум {{ mx }} в день</span><span>{{ by_day[-1].day }}</span></div>
+</div>
+
+<div class="grid2">
+  <div class="card-s">
+    <h2>Откуда пришли</h2>
+    <p class="hint">utm_source или ?ref=, иначе домен ссылавшегося сайта.</p>
+    {% if sources %}<table class="t"><tr><th>Источник</th><th>Канал</th><th class="num">Людей</th></tr>
+    {% for s in sources %}<tr><td>{{ s.src }}</td><td class="muted">{{ s.medium }}</td><td class="num">{{ s.n }}</td></tr>{% endfor %}</table>
+    {% else %}<p class="empty">Пока пусто.</p>{% endif %}
+  </div>
+  <div class="card-s">
+    <h2>Страницы</h2>
+    <p class="hint">Просмотры людьми.</p>
+    {% if pages %}<table class="t"><tr><th>Страница</th><th class="num">Просмотров</th><th class="num">Сессий</th></tr>
+    {% for p in pages %}<tr><td><code>{{ p.path }}</code></td><td class="num">{{ p.views }}</td><td class="num">{{ p.sessions }}</td></tr>{% endfor %}</table>
+    {% else %}<p class="empty">Пока пусто.</p>{% endif %}
+  </div>
+</div>
+
+<div class="card-s">
+  <h2>Воронка брони</h2>
+  <p class="hint">Уникальные сессии на каждом шаге. «Ушёл на оплату» считает сервер (без привязки к сессии), поэтому сравнивайте его с «Форма отправлена» как число.</p>
+  <table class="t">
+    <tr><th>Шаг</th><th class="num">Сессий</th><th style="width:40%"></th><th class="num">От первого</th><th class="num">Потеря на шаге</th></tr>
+    {% for s in funnel.steps %}
+    <tr><td>{{ s.label }}</td><td class="num">{{ s.n }}</td>
+      <td><div class="bar" style="width:{{ s.of_first_pct or 0 }}%" title="{{ s.label }}: {{ s.n }}"></div></td>
+      <td class="num">{{ s.of_first_pct ~ ' %' if s.of_first_pct is not none else '—' }}</td>
+      <td class="num {{ 'bad' if s.loss_pct and s.loss_pct >= 50 }}">{{ s.loss_pct ~ ' %' if s.loss_pct is not none else '—' }}</td></tr>
+    {% endfor %}
+  </table>
+  <p class="hint" style="margin-top:12px">Рядом с воронкой:</p>
+  <table class="t">{% for s in funnel.side %}<tr><td>{{ s.label }}</td><td class="num">{{ s.n }}</td></tr>{% endfor %}</table>
+</div>
+
+<div class="grid2">
+  {% for title, hint, rows in (("Злые клики", "3+ клика за секунду в одно место — что-то не реагирует или раздражает.", rage), ("Мёртвые клики", "Клик по кнопке, ссылке, дню календаря или элементу с курсором-рукой, после которого за секунду ничего не изменилось. «старое правило» — записи до 30.10: тогда сюда шли и тапы по декору.", dead), ("Тапы по декору", "Тап мимо всего, что обещает действие (подписи, фон, дни недели календаря), без реакции. Не ошибка сайта: смотреть, только если место выглядит кликабельным.", decor)) %}
+  <div class="card-s">
+    <h2>{{ title }}</h2><p class="hint">{{ hint }}</p>
+    {% if rows %}<table class="t"><tr><th>Где</th><th>Элемент</th><th class="num">Сессий</th><th class="num">Раз</th></tr>
+    {% for r in rows %}<tr><td><code>{{ r.path }}</code><br><span class="muted">{{ dev(r.device) }}</span></td>
+      <td><code>{{ r.sel }}</code>{% if r.txt %}<br>«{{ r.txt }}»{% endif %}{% if r.rule == 1 and title == "Мёртвые клики" %}<br><span class="muted">старое правило</span>{% endif %}</td><td class="num">{{ r.sessions }}</td><td class="num">{{ r.n }}</td></tr>{% endfor %}</table>
+    {% else %}<p class="empty">Не было.</p>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+<div class="grid2">
+  <div class="card-s">
+    <h2>Поля форм</h2>
+    <p class="hint">Сколько сессий трогали поле, среднее время в нём и доля заполненных при уходе из поля. Значения полей не собираются.</p>
+    {% if fields.used %}<table class="t"><tr><th>Форма · поле</th><th class="num">Сессий</th><th class="num">Ср. время</th><th class="num">Заполнено</th></tr>
+    {% for f in fields.used %}<tr><td><code>{{ f.form }} · {{ f.field }}</code></td><td class="num">{{ f.sessions }}</td>
+      <td class="num">{{ ((f.avg_ms or 0) / 1000) | round(1) }} с</td><td class="num">{{ (f.filled_pct or 0) | int }} %</td></tr>{% endfor %}</table>
+    {% else %}<p class="empty">Пока пусто.</p>{% endif %}
+  </div>
+  <div class="card-s">
+    <h2>Где бросили форму</h2>
+    <p class="hint">Последнее поле, которое человек трогал, прежде чем ушёл со страницы без отправки.</p>
+    {% if fields.abandoned %}<table class="t"><tr><th>Форма · поле</th><th class="num">Сессий</th></tr>
+    {% for f in fields.abandoned %}<tr><td><code>{{ f.form }} · {{ f.field }}</code></td><td class="num">{{ f.sessions }}</td></tr>{% endfor %}</table>
+    {% else %}<p class="empty">Не бросали.</p>{% endif %}
+  </div>
+</div>
+
+<div class="grid2">
+  <div class="card-s">
+    <h2>Ошибки JavaScript</h2>
+    {% if errors.js %}<table class="t"><tr><th>Ошибка</th><th>Где</th><th class="num">Сессий</th></tr>
+    {% for e in errors.js %}<tr><td>{{ e.msg }}</td><td><code>{{ e.src }}:{{ e.line }}</code><br><span class="muted">{{ e.path }}</span></td><td class="num">{{ e.sessions }}</td></tr>{% endfor %}</table>
+    {% else %}<p class="empty">Ошибок не было.</p>{% endif %}
+  </div>
+  <div class="card-s">
+    <h2>Ответы /api/*</h2>
+    <p class="hint">Код 0 — запрос не дошёл (сеть).</p>
+    {% if errors.api %}<table class="t"><tr><th>Запрос</th><th class="num">Код</th><th class="num">Раз</th><th class="num">Ср. время</th></tr>
+    {% for a in errors.api %}<tr><td><code>{{ a.api }}</code></td><td class="num {{ 'bad' if a.status == 0 or a.status >= 400 }}">{{ a.status }}</td><td class="num">{{ a.n }}</td><td class="num">{{ a.avg_ms }} мс</td></tr>{% endfor %}</table>
+    {% else %}<p class="empty">Пока пусто.</p>{% endif %}
+  </div>
+</div>
+
+<div class="card-s">
+  <h2>Скорость</h2>
+  <p class="hint">75-й процентиль, как считает Google: LCP — когда показался главный блок (хорошо ≤ 2,5 с), INP — задержка реакции на нажатие (≤ 200 мс), CLS — прыжки вёрстки (≤ 0,1).</p>
+  {% if vitals %}<table class="t"><tr><th>Страница</th><th>Устройство</th><th class="num">Замеров</th><th>LCP</th><th>INP</th><th>CLS</th></tr>
+  {% for v in vitals %}<tr><td><code>{{ v.page }}</code></td><td>{{ dev(v.device) }}</td><td class="num">{{ v.n }}</td>
+    <td>{{ vital(v.lcp, 2500, 4000, ' мс') }}</td><td>{{ vital(v.inp, 200, 500, ' мс') }}</td><td>{{ vital(v.cls, 0.1, 0.25) }}</td></tr>{% endfor %}</table>
+  {% else %}<p class="empty">Пока пусто.</p>{% endif %}
+</div>
+
+<div class="card-s">
+  <h2>Прокрутка и тепловые карты</h2>
+  <p class="hint">Средняя глубина и доля просмотров, дошедших до 75 % страницы. Ссылки открывают карту кликов и прокрутки.</p>
+  {% if scroll or heat_pages %}<table class="t"><tr><th>Страница</th><th>Устройство</th><th class="num">Просмотров</th><th class="num">Ср. глубина</th><th class="num">До 75 %</th><th></th></tr>
+  {% for s in scroll %}<tr><td><code>{{ s.path }}</code></td><td>{{ dev(s.device) }}</td><td class="num">{{ s.views }}</td><td class="num">{{ s.avg_depth }} %</td><td class="num">{{ s.reach75 | int }} %</td>
+    <td><a href="{{ url_for('analytics.stats_heat', path=s.path, dev=s.device, days=days) }}">карта</a></td></tr>{% endfor %}</table>
+  {% else %}<p class="empty">Пока пусто.</p>{% endif %}
+</div>
+
+<div class="card-s">
+  <h2>Записи сессий</h2>
+  <p class="hint">Поля ввода и форма брони в записи закрыты маской. Хранятся 90 дней.</p>
+  {% if recs %}<table class="t"><tr><th>Начало</th><th>Устройство</th><th>Вход</th><th>Источник</th><th class="num">Страниц</th><th class="num">Злых кликов</th><th>Бронь</th><th class="num">Размер</th><th></th></tr>
+  {% for r in recs %}<tr><td>{{ when(r.start) }}</td><td>{{ dev(r.device) }}</td><td><code>{{ r.landing or '' }}</code></td><td>{{ r.src }}</td>
+    <td class="num">{{ r.pages }}</td><td class="num {{ 'bad' if r.rage }}">{{ r.rage }}</td><td>{{ 'отправил' if r.submit else '' }}</td>
+    <td class="num">{{ ((r.bytes or 0) / 1024) | round(0) | int }} КБ</td><td><a href="{{ url_for('analytics.stats_replay', sid=r.sid) }}">смотреть</a></td></tr>{% endfor %}</table>
+  {% else %}<p class="empty">Записей пока нет.</p>{% endif %}
+</div>
+{% endblock %}

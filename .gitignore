@@ -1,0 +1,51 @@
+.env
+__pycache__/
+*.pyc
+*.pyo
+.env
+.venv
+venv/
+.pytest_cache/
+.aws-sam/
+htmlcov/
+.coverage
+dist/
+*.egg-info/
+
+# штамп збірки — генерує scripts/stamp_build.py на кожній машині окремо
+BUILD_INFO.json
+
+.claude/shots/
+
+# autonomous dev-cycle run artifacts (context packs, journals, raw Claude output) — never commit
+.claude/cc10x/devrun/
+# робочі дерева сесій Claude — код там уже є в git через свою гілку
+.claude/worktrees/
+# ВСЯ робоча тека агента, а не один файл налаштувань: 13.09 зворотна звірка
+# відбитків знайшла в історії бек-офісу живий токен бота в .claude/tasks/ і
+# .claude/prompts/ — тобто в ТЕКСТАХ ЗАВДАНЬ, які ми пишемо самі собі. Тече не
+# один відомий файл, а тека цілком: завдання, промпти, чернетки планів, розбори.
+# `**/` обов'язкове: шаблон із косою рискою всередині діє лише від теки самого
+# .gitignore, тож `.claude/*` закривав робочу теку ТІЛЬКИ в корені, а
+# backend/.claude/tasks/ чи будь-яка вкладена — проходила мовчки (перевірено
+# git check-ignore до правки: жоден вкладений шлях не ловився).
+# І саме `/*` у кінці, а не `**/.claude/`: у виключену ТЕКУ git не заходить,
+# і повернути з неї файл через `!` вже не можна.
+**/.claude/*
+# Єдиний виняток — описи навичок Spec Kit: це спільний інструмент, не чернетка
+# сесії. Дозволено рівно SKILL.md, нічого іншого з теки навичок.
+!**/.claude/skills/
+**/.claude/skills/*
+!**/.claude/skills/*/
+**/.claude/skills/*/*
+!**/.claude/skills/*/SKILL.md
+
+# Playwright-смока (e2e/): залежності й звіти прогонів; браузери живуть у ~/.cache/ms-playwright
+e2e/node_modules/
+e2e/playwright-report/
+e2e/test-results/
+e2e/blob-report/
+e2e/playwright/.cache/
+
+# TMPDIR рамки прогону і scripts/ci-local.sh: <чекаут>/tmp — на машині це може бути тека викату. Без цього рядка stamp_build.py бачить її як невідстежувану і /health бреше git_dirty=true.
+/tmp/

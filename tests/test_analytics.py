@@ -525,7 +525,7 @@ def test_dead_rule_v2_keeps_old_rows_apart_and_decor_separate(client, adb):
 
 def test_beacon_dead_rule_v2_in_script():
     """Маяк: dead лише по ACT або cursor:pointer, ціль — від pointerdown (Flatpickr відкривається
-    поверх поля ще до click, і click приходить BODY — розбір 30.10, docs/PATTERNS.md §8a).
+    поверх поля ще до click, і click приходить BODY — розбір 30.10, правило dead 2).
     Поведінку в браузері стереже смока 07."""
     src = open(os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "analytics.js"),
                encoding="utf-8").read()

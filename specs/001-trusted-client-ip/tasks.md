@@ -20,7 +20,7 @@ contracts/trusted-proxy-count.md, quickstart.md
 адреса 192.0.2.0/24, 198.51.100.0/24, 203.0.113.0/24, 2001:db8::/32 и петля 127.0.0.1 / ::1;
 телефоны — только синтетические (`+380000000000`).
 Не трогать: `api_client.py`, `wsgi_adapter.py`, `infra/`, `static/`, `templates/`, `e2e/`,
-`deploy/caddy/`, `deploy/nginx/`, `deploy/systemd/`, `CLAUDE.md`, `.specify/`.
+конфиги прокси и юниты (вне репо), `CLAUDE.md`, `.specify/`.
 
 **Имена тестов**: в `tests/test_client_ip.py` имена тестовых функций начинаются с `test_us1_`,
 `test_us2_`, `test_us3_` или `test_config_` — на этом держатся команды `-k us1` / `-k us2` /
@@ -102,7 +102,7 @@ contracts/trusted-proxy-count.md, quickstart.md
 
 **Goal**: одна INFO-запись о режиме при старте процесса, ERROR при неверной настройке, ни одного адреса в журнале; документация выбора N
 
-**Independent Test**: `python -m pytest tests/test_client_ip.py -k us3 -v`; чтение `deploy/README.md` и `deploy/site.env.example`
+**Independent Test**: `python -m pytest tests/test_client_ip.py -k us3 -v`; чтение README выката (вне репо) и `deploy/site.env.example`
 
 ### Tests for User Story 3 ⚠️
 
@@ -112,8 +112,8 @@ contracts/trusted-proxy-count.md, quickstart.md
 ### Implementation for User Story 3
 
 - [X] T018 [US3] В `app.py` добавить `_log_client_ip_mode()`: при `Config.TRUSTED_PROXY_COUNT_INVALID` — `logger.error("client_ip_config_invalid env=TRUSTED_PROXY_COUNT fallback=default")`; затем одна `logger.info` по режиму (`client_ip_mode mode=default` / `mode=ignore_header` / `mode=trusted_proxies n=%d`); вызвать один раз на уровне модуля после создания `app`; адресов и сырого значения не писать; журнал (обработчики, `basicConfig`) не настраивать; тесты T016–T017 зелёные
-- [X] T019 [P] [US3] В `deploy/README.md` в разделе «Дві топології фронту» добавить подраздел про `TRUSTED_PROXY_COUNT` (українською, як і весь файл): значення «не задана» / 0 / N ≥ 1; N = 1 для топологій (Б) і (В) і чому (фронт ставить рівно одне значення); чому на Lambda N не обрано і відкат до адреси з'єднання там не захищає (`wsgi_adapter.py:57-58`, spec.md «Ограничения»); що експеримент із «Після будь-якої зміни топології» лишається обов'язковим; що на коробці без налаштування журналу видно лише WARNING/ERROR, а рядок режиму INFO — ні (research.md R3). Переписати абзац «І чесна засторога…» (зараз каже, що `_visitor_ip()` бере перший елемент) і згадку в «Що ще не зроблено» (про `_visitor_ip()` під Cloudflare) під нову поведінку
-- [X] T020 [P] [US3] В `deploy/site.env.example` добавить блок `TRUSTED_PROXY_COUNT=1` с комментарием по-украински: что значит значение, что 1 — для коробки за Caddy (и за Caddy → nginx), что пусто = поведение как на Lambda сегодня (первый элемент), 0 = без прокси; ссылка на раздел `deploy/README.md`
+- [X] T019 [P] [US3] В README выката (вне репо) в разделе «Дві топології фронту» добавить подраздел про `TRUSTED_PROXY_COUNT` (українською, як і весь файл): значення «не задана» / 0 / N ≥ 1; N = 1 для топологій (Б) і (В) і чому (фронт ставить рівно одне значення); чому на Lambda N не обрано і відкат до адреси з'єднання там не захищає (`wsgi_adapter.py:57-58`, spec.md «Ограничения»); що експеримент із «Після будь-якої зміни топології» лишається обов'язковим; що на коробці без налаштування журналу видно лише WARNING/ERROR, а рядок режиму INFO — ні (research.md R3). Переписати абзац «І чесна засторога…» (зараз каже, що `_visitor_ip()` бере перший елемент) і згадку в «Що ще не зроблено» (про `_visitor_ip()` під Cloudflare) під нову поведінку
+- [X] T020 [P] [US3] В `deploy/site.env.example` добавить блок `TRUSTED_PROXY_COUNT=1` с комментарием по-украински: что значит значение, что 1 — для коробки за Caddy (и за Caddy → nginx), что пусто = поведение как на Lambda сегодня (первый элемент), 0 = без прокси; ссылка на раздел README выката (вне репо)
 
 **Checkpoint**: все истории зелёные; коммит `feat(001): журнал режима разбора + docs deploy` + push
 
@@ -123,7 +123,7 @@ contracts/trusted-proxy-count.md, quickstart.md
 
 - [X] T021 Прогнать `python -m pytest tests/ -q` — всё зелёное, число passed ≥ базы T001 + новые тесты (SC-006)
 - [X] T022 Прогнать смоку `cd e2e && npx playwright test` (fake) — зелёная, файлы `e2e/` не изменены (SC-006)
-- [X] T023 Проверить diff фичи грепом: `git diff origin/master -- app.py config.py tests/ deploy/README.md deploy/site.env.example` не содержит IPv4-адресов вне 192.0.2.0/24, 198.51.100.0/24, 203.0.113.0/24, 127.0.0.1 и IPv6 вне 2001:db8::/32 и ::1 (прежний адрес в существующем тесте допустим, если строка не менялась), не содержит секретов; `git diff --stat` затрагивает только файлы из plan.md «Source Code»
+- [X] T023 Проверить diff фичи грепом: `git diff origin/master -- app.py config.py tests/ deploy/site.env.example` не содержит IPv4-адресов вне 192.0.2.0/24, 198.51.100.0/24, 203.0.113.0/24, 127.0.0.1 и IPv6 вне 2001:db8::/32 и ::1 (прежний адрес в существующем тесте допустим, если строка не менялась), не содержит секретов; `git diff --stat` затрагивает только файлы из plan.md «Source Code»
 - [X] T024 Пройти `specs/001-trusted-client-ip/quickstart.md` шаги 1–4 и сверить вывод с ожидаемым; отчёт дирижёру — с числами тестов, без адресов
 
 ---
@@ -144,14 +144,14 @@ contracts/trusted-proxy-count.md, quickstart.md
 ### Parallel Opportunities
 
 - T013 (`tests/test_coupon_ui.py`) — параллельно с T012/T014 (другой файл)
-- T019 (`deploy/README.md`) и T020 (`deploy/site.env.example`) — параллельно друг с другом и с T016–T018
+- T019 (README выката (вне репо)) и T020 (`deploy/site.env.example`) — параллельно друг с другом и с T016–T018
 
 ---
 
 ## Parallel Example: User Story 3
 
 ```bash
-Task: "T019 раздел TRUSTED_PROXY_COUNT в deploy/README.md"
+Task: "T019 раздел TRUSTED_PROXY_COUNT в README выката (вне репо)"
 Task: "T020 блок TRUSTED_PROXY_COUNT=1 в deploy/site.env.example"
 ```
 
@@ -167,7 +167,7 @@ Task: "T020 блок TRUSTED_PROXY_COUNT=1 в deploy/site.env.example"
 
 ### Incremental Delivery
 
-Каждая фаза — отдельный коммит и пуш в `master` (только CI). Выкат в прод (Lambda, `deploy.ps1`)
+Каждая фаза — отдельный коммит и пуш в `master` (только CI). Выкат в прод (Lambda)
 и установка на коробку — **не часть фичи**, только с «да» владельца.
 
 ---
@@ -178,7 +178,7 @@ Task: "T020 блок TRUSTED_PROXY_COUNT=1 в deploy/site.env.example"
 - `wsgi_adapter.py:57-58` (REMOTE_ADDR = первый элемент на Lambda) — известное ограничение, не
   править (spec.md «Ограничения»)
 - Настройку журнала коробки (чтобы INFO был виден) не делать — вне фичи (research.md R3)
-- Устаревшие комментарии в `deploy/nginx/*.conf` и `deploy/caddy/*` про «первый элемент» — вне
+- Устаревшие комментарии в конфигах nginx и Caddy (вне репо) про «первый элемент» — вне
   фичи; сообщить дирижёру, не править
 
 ## Phase 7: Convergence

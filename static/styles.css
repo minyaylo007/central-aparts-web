@@ -1661,7 +1661,7 @@ strong, b { font-weight: 600; color: var(--ink); }
 .hsearch-field { border-radius: var(--r-lg); padding: 0.7rem 1rem; }
 .hsearch-label { color: var(--stone); letter-spacing: 0.1em; }
 .hsearch-submit { border-radius: var(--r-lg); min-height: 60px; padding: 0 1.8rem; font-size: 0.92rem; }
-/* 30.10: заїзд обрано, виїзд ні — поле виїзду підсвічене, під панеллю підказка (§8b PATTERNS) */
+/* 30.10: заїзд обрано, виїзд ні — поле виїзду підсвічене, під панеллю підказка */
 .hsearch-field.is-next { background: var(--clay-wash); box-shadow: inset 0 0 0 2px var(--clay); }
 .hsearch-field.is-next .hsearch-input::placeholder { color: var(--clay); }
 .hsearch-hint {
@@ -1676,7 +1676,7 @@ strong, b { font-weight: 600; color: var(--ink); }
   background: var(--clay-wash); color: var(--clay-ink); font-size: 0.82rem; line-height: 1.35; text-align: center;
 }
 .flatpickr-calendar .fp-hint[hidden] { display: none; }
-/* 30.10, задача 16: віджет квартири — заїзд обрано, виїзд ні (§8c PATTERNS) */
+/* 30.10, задача 16: віджет квартири — заїзд обрано, виїзд ні */
 .widget-date-half.is-next { background: var(--clay-wash); box-shadow: inset 0 0 0 2px var(--clay); }
 .widget-date-half.is-next .widget-input::placeholder { color: var(--clay); }
 .widget-next-hint { margin: 0.55rem 0 0; color: var(--clay); font-size: 0.85rem; font-weight: 600; text-align: center; }

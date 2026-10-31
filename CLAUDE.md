@@ -9,10 +9,10 @@ no database here. UI language: Ukrainian (`translations.py`). Branch: **master**
 ## Внутрішня частина (лише на машині проєкту)
 
 Викат і відкат на прод, стан прод/AWS/DNS, Caddy, рамка прогону машини, докладні патерни й
-історія рішень (`docs/PATTERNS.md`, `docs/DELIVERY.md`, `deploy/README.md`) — у приватному
-ops-клоні `~/repos/central-aparts-site-ops`. Його `CLAUDE.md` підключено імпортом нижче; якщо
+історія рішень — лише в приватному ops-клоні `~/repos/central-aparts-site-ops`, у цьому репо
+їх нема (згадки «PATTERNS» нижче — про нотатки ops-клону). Його `CLAUDE.md` підключено імпортом нижче; якщо
 імпорт не підвантажився (нема клону або імпорт не схвалено) — **перед викатом, роботою з
-продом або з `docs/…` прочитати `~/repos/central-aparts-site-ops/CLAUDE.md` вручну**. У
+продом або з внутрішніми нотатками прочитати `~/repos/central-aparts-site-ops/CLAUDE.md` вручну**. У
 публічному клоні цього файлу нема — для правки коду, тестів і смоки він не потрібен.
 
 @~/repos/central-aparts-site-ops/CLAUDE.md
@@ -35,8 +35,8 @@ scripts/ci-local.sh  # локальні ворота = рамка CI (ruff, по
 - **У `<script>` — лише `| tojson` або `| int`**, ніколи `{{ value }}`.
 - **Помилка бек-офісу → `public_error.html` з перекладеним текстом**, не traceback. 404 від API → `abort(404)`. 429/503 → `BackofficeUnavailable` (JSON-ручки 503 `busy`, `/book` — flash з хвилинами).
 - **Секрети й ПД — ніде:** ключ і URL лише з env (`config.py`); у журнал — без телефонів, адрес і URL з query (`_log_backoffice_error(event, e)`, не `exc_info=True`). Телефони в тестах і документах — лише код оператора `00`.
-- **Ідемпотентність броні:** кожен submit — новий UUID у прихованому `idempotency_key`; `/book` і `/book-group` ідуть через `_post_idempotent` (тіло серіалізується один раз, повтори на 409 in_progress/503 за `Retry-After`, mismatch не повторюється). Деталі — внутрішні нотатки (`docs/PATTERNS.md` §7 в ops).
-- **CSS першого екрана:** після правки `styles.css`, шаблонів або класів у `main.js` запускати `scripts/build_css.sh` — інакше `static/critical/*.css` і `bootstrap-lite.css` застаріють (`tests/test_critical_css.py` упаде). Bootstrap з CDN не повертати; деталі — внутрішні нотатки (`docs/PATTERNS.md`, «Перший екран», в ops).
+- **Ідемпотентність броні:** кожен submit — новий UUID у прихованому `idempotency_key`; `/book` і `/book-group` ідуть через `_post_idempotent` (тіло серіалізується один раз, повтори на 409 in_progress/503 за `Retry-After`, mismatch не повторюється). Деталі — внутрішні нотатки (ops-клон, PATTERNS §7).
+- **CSS першого екрана:** після правки `styles.css`, шаблонів або класів у `main.js` запускати `scripts/build_css.sh` — інакше `static/critical/*.css` і `bootstrap-lite.css` застаріють (`tests/test_critical_css.py` упаде). Bootstrap з CDN не повертати; деталі — внутрішні нотатки (ops-клон, PATTERNS, «Перший екран»).
 - **Статика:** `static_url('styles.css')` дає `?v=<git_short>`; після `git pull` і перед рестартом обов'язковий `scripts/stamp_build.py`, інакше кеш не зсунеться. `/health` віддає коміт і `no-store`.
 - **Стиль:** `snake_case`/`PascalCase`; CSS лише через токени `styles.css :root` (`--clay`, `--greige`, `--cream`, `--espresso`, `--sage`; `--oak` — лише декор), жодного hex у нових стилях, старий рожевий `#C8365E` не повертати; шрифти Cormorant Garamond + Inter, не міняти. Редизайн 10.2026 (§26 в кінці `styles.css`, перебиває старі секції): білі поверхні `--surface`, `--sage-wash`, радіуси `--r-md`/`--r-xl`/`--r-pill`, тіні `--shadow-card`/`--shadow-panel`, `--hero-scrim`; ціни — Inter, заголовки — Cormorant. Нові правила дописувати в §26.
 - **Config:** клас `Config` у `config.py`, усе з env; `GTM_ID` і `FB_PIXEL_ID` — константи.
@@ -71,6 +71,6 @@ specs/, .specify/ Spec Kit — лише для фіч > 1 дня або про �
 ## Оновлення цього файлу
 
 Сюди — лише правило, без якого наступна правка зламається. Знахідки, патерни, числа замірів,
-історія — у `docs/PATTERNS.md` ops-клону (відповідний розділ). Тримати цей файл до 120 рядків.
+історія — у внутрішніх нотатках ops-клону (PATTERNS, відповідний розділ). Тримати цей файл до 120 рядків.
 Цей файл публічний: жодних шляхів машини, IP, імен сервера, ідентифікаторів AWS, внутрішніх
 служб і людей — усе таке пишеться в ops-CLAUDE.md.

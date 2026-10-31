@@ -97,9 +97,9 @@
       {% endif %}
       <button type="submit" class="hsearch-submit"><i class="bi bi-search" aria-hidden="true"></i> {{ t("book_now") }}</button>
     </form>
-    {# 30.10: на телефоні календар виїзду після заїзду сам не відкривається — кажемо, що далі (docs/PATTERNS.md §8b) #}
+    {# 30.10: на телефоні календар виїзду після заїзду сам не відкривається — кажемо, що далі #}
     <p class="hsearch-hint" id="hs-hint" role="status" hidden>{{ t("hero_pick_checkout") }}</p>
-    {# 30.10: «+» на максимумі гостей — пояснення, а не тиша (docs/PATTERNS.md §8a, розбір (14)) #}
+    {# 30.10: «+» на максимумі гостей — пояснення, а не тиша (розбір 30.10, (14)) #}
     <p class="hsearch-hint" id="hs-guests-hint" role="status" hidden>{{ t("guests_max_hint") | replace("{n}", guests_max | string) }}</p>
   </div>
 </section>

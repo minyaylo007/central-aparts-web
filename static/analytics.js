@@ -44,7 +44,7 @@ push({ k: 'pv', w: W.innerWidth, h: W.innerHeight, l: (N.language || '').slice(0
 flush();
 
 // кліки; rage: 3 за 1 с поруч; dead (dd): 1 с без реакції після тапу по тому, що обіцяє дію, —
-// ACT або cursor:pointer (docs/PATTERNS.md §8a). Тап по декору без реакції — dx, у dead не йде.
+// ACT або cursor:pointer (правило dead 2, 30.10). Тап по декору без реакції — dx, у dead не йде.
 var INTER = 'a,button,[role=button],input,select,textarea,label,summary,[data-bs-toggle]',
   ACT = INTER + ',[onclick],[tabindex]:not([tabindex="-1"]),.flatpickr-day,.flatpickr-prev-month,.flatpickr-next-month',
   FIELD = /^(INPUT|SELECT|TEXTAREA)$/;

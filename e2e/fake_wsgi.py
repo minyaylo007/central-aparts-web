@@ -10,7 +10,7 @@ gunicorn-вхід смоки в режимі SMOKE_BACKEND=fake: СПРАВЖН�
 (там wsgi.py / wsgi_adapter.py). Для смоки -w 1 обовʼязково — стан підміни живе в
 памʼяті одного процесу.
 
-Замір навантаження (deploy/README.md) вмикає змінні — див. fake_transport.py:
+Замір навантаження (specs/002-bounded-backoffice-calls/quickstart.md §5) вмикає змінні — див. fake_transport.py:
 SMOKE_FAKE_DELAY_MS (затримка кожного звернення до бек-офісу), SMOKE_FAKE_REAL_CLIENT=1
 (справжній BackofficeClient з TTL-кешем поверх підміни) і SMOKE_FAKE_COUNT=1 (разом із
 попередньою: лічильники звернень і піку в /__fake__/state → "transport", з pid процесу —

@@ -62,7 +62,7 @@ test.describe('Група 7 · Статистика', () => {
     expect(sent.join('').split('"k":"dd"').length, 'посилання з навігацією через 6 с — без dd').toBe(before);
   });
 
-  // 30.10, правило dead 2 (docs/PATTERNS.md §8a): dd — лише по тому, що обіцяє дію (кнопка, день
+  // 30.10, правило dead 2 (static/analytics.js, ACT): dd — лише по тому, що обіцяє дію (кнопка, день
   // календаря, cursor:pointer); тап по декору без реакції — dx, у мертві не йде.
   test('мертвий клік лише по цілі, що обіцяє дію; декор — dx', async ({ page }) => {
     await page.route(/\/__decor$/, (r) => r.fulfill({ contentType: 'text/html', body: '<!doctype html><html>'

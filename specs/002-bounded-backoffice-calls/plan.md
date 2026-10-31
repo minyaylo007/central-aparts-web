@@ -129,8 +129,7 @@ deploy/
 ```
 
 Не меняются: `static/`, `templates/`, `wsgi.py` (журнал под gunicorn уже настроен, research R8),
-`wsgi_adapter.py`, `infra/`, `deploy/caddy/`, `deploy/nginx/`,
-`deploy/systemd/`, `e2e/tests/`, `e2e/playwright.config.ts`, `e2e/fake_backoffice.py`, `CLAUDE.md`,
+`wsgi_adapter.py`, `infra/`, конфиги прокси и юниты (вне репо), `e2e/tests/`, `e2e/playwright.config.ts`, `e2e/fake_backoffice.py`, `CLAUDE.md`,
 `.specify/`.
 
 **Structure Decision**: одиночный Flask-проект в корне; вся логика обращений — в `api_client.py`

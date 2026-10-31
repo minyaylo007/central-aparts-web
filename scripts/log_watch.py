@@ -35,7 +35,8 @@
 Місця беруться з середовища, типові значення виводяться з розташування чекауту:
   SITE_UNIT        юніт сайту (типово <користувач>-central-aparts-site)
   SITE_DATA_DIR    тека стану й бази статистики (типово <чекаут>-data поруч із чекаутом)
-  SITE_NOTIFY_CMD  команда сповіщення (типово ~/bin/lead-say.sh)
+  SITE_NOTIFY_CMD  команда сповіщення, ОБОВ'ЯЗКОВА: типового значення нема; без неї сторож
+                   пише помилку в stderr і виходить з кодом 2 (а не мовчить)
 
   scripts/log_watch.py [--dry-run] [--since ЧАС] [--state ФАЙЛ] [--db ФАЙЛ]
 
@@ -59,7 +60,7 @@ UNIT = os.environ.get("SITE_UNIT") or f"{getpass.getuser()}-central-aparts-site"
 DATA_DIR = os.environ.get("SITE_DATA_DIR") or _CHECKOUT + "-data"
 STATE_PATH = os.path.join(DATA_DIR, "logwatch-state.json")
 DB_PATH = os.path.join(DATA_DIR, "analytics.db")
-LEAD_SAY = os.environ.get("SITE_NOTIFY_CMD") or os.path.expanduser("~/bin/lead-say.sh")
+LEAD_SAY = os.environ.get("SITE_NOTIFY_CMD") or ""
 WHERE = f"journalctl --user -u {UNIT}"
 
 HOUR = 3600
@@ -357,7 +358,7 @@ def run(state_path, db_path, dry_run, now=None, since=None):
                 st["sigs"][sig]["sent_n"] = 0
             if quiet:
                 st["beacon_sent"] = 0
-            print("log_watch: lead-say не вдався", file=sys.stderr)
+            print("log_watch: команда сповіщення (SITE_NOTIFY_CMD) не вдалася", file=sys.stderr)
             rc = 1
         else:
             print(line)
@@ -374,6 +375,12 @@ def main(argv=None):
     a = ap.parse_args(argv)
     if a.since and not a.dry_run:
         ap.error("--since — лише з --dry-run: інакше курсор стрибне назад")
+    if not a.dry_run and not LEAD_SAY:
+        # без команди сповіщення сторож не сміє мовчати: помилка видна в журналі юніта
+        print("log_watch: SITE_NOTIFY_CMD не задано — нема куди слати сповіщення; задайте\n"
+              "команду сповіщення в env юніта сторожа (перевірка без неї — --dry-run)",
+              file=sys.stderr)
+        return 2
     return run(a.state, a.db, a.dry_run, since=a.since)
 
 

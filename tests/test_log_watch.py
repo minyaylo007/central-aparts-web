@@ -433,3 +433,23 @@ def test_places_default_next_to_checkout(monkeypatch):
     checkout = Path(__file__).resolve().parent.parent
     assert mod.DATA_DIR == str(checkout) + "-data"
     assert mod.UNIT == "someone-central-aparts-site"
+    assert mod.LEAD_SAY == ""  # команди сповіщення за замовчуванням нема
+
+
+def test_no_notify_cmd_fails_loudly(monkeypatch, tmp_path, capsys):
+    """Без SITE_NOTIFY_CMD сторож не мовчить: помилка в stderr, код ≠ 0, нічого не читає й не пише."""
+    monkeypatch.delenv("SITE_NOTIFY_CMD", raising=False)
+    mod = _load_fresh()
+    touched = []
+    monkeypatch.setattr(mod, "read_journal", lambda *a, **k: touched.append("journal") or [])
+    monkeypatch.setattr(mod.subprocess, "run", lambda *a, **k: touched.append("run"))
+    st = tmp_path / "st.json"
+    assert mod.main(["--state", str(st)]) != 0
+    assert "SITE_NOTIFY_CMD" in capsys.readouterr().err
+    assert touched == []
+    assert not st.exists()
+    # --dry-run нічого не шле — йому команда не потрібна
+    monkeypatch.setattr(mod, "read_journal", lambda cursor, since=None: [])
+    monkeypatch.setattr(mod, "read_unit", lambda: ("active", 0))
+    monkeypatch.setattr(mod, "read_analytics", lambda db, last: ([], last or 0))
+    assert mod.main(["--dry-run", "--state", str(st)]) == 0

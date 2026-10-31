@@ -3,7 +3,7 @@ certifi, urllib3 і Werkzeug нижче версій із виправлення
 стояв на certifi 2026.7.22 — GHSA-6q48-6c7w-9gw2, підміна TLS до бек-офісу).
 
 Без мережі: лише розбір файлів. requirements.txt — діапазони (CI, Lambda), lock — точні
-версії, які ставить викат (deploy/README.md, «Як оновлюється»)."""
+версії, які ставить викат (команда генерації — у шапці requirements.lock)."""
 import re
 from pathlib import Path
 
@@ -79,7 +79,7 @@ def test_lock_pins_safe_versions():
 
 def test_lock_satisfies_requirements_txt():
     """Lock не відстав від requirements.txt: кожна пряма залежність прибита у версії,
-    яку дозволяє діапазон. Змінив requirements.txt — перегенеруй lock (deploy/README.md)."""
+    яку дозволяє діапазон. Змінив requirements.txt — перегенеруй lock (команда — у шапці requirements.lock)."""
     reqs = parse_requirements((ROOT / "requirements.txt").read_text(encoding="utf-8"))
     pins = parse_lock((ROOT / "requirements.lock").read_text(encoding="utf-8"))
     stale = [f"{name}: {pins.get(name)} не в {req.specifier}" for name, req in reqs.items()

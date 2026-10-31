@@ -140,7 +140,7 @@ def clean_event(e: dict):
                    n=_num(e.get("n"), 1, 100, integer=True) if k == "rg" else None)
         # dd/dx: версія правила мертвого кліку (num1). Старі записи — NULL = правило 1: dead на
         # будь-який тап, і по декору теж. Правило 2 (30.10): dd — лише по цілі, що обіцяє дію;
-        # тап по декору без реакції — dx. Див. docs/PATTERNS.md §8a.
+        # тап по декору без реакції — dx (див. static/analytics.js, ACT).
         if k in ("dd", "dx") and e.get("dv") == 2:
             out["num1"] = 2
         return out

@@ -87,7 +87,8 @@ class Config:
 
     # Адреса гостя для бек-офісу (_visitor_ip в app.py): скільки довірених проксі
     # стоїть перед сайтом. Не задано — як до фічі (перший елемент X-Forwarded-For);
-    # 0 — заголовок ігнорується; N ≥ 1 — N-й елемент справа. Див. deploy/README.md.
+    # 0 — заголовок ігнорується; N ≥ 1 — N-й елемент справа. Див. deploy/site.env.example
+    # і specs/001-trusted-client-ip/spec.md.
     TRUSTED_PROXY_COUNT: int | None
     TRUSTED_PROXY_COUNT_INVALID: bool
     TRUSTED_PROXY_COUNT, TRUSTED_PROXY_COUNT_INVALID = _parse_trusted_proxy_count(
@@ -95,7 +96,8 @@ class Config:
 
     # Бережні звернення до бек-офісу (спека 002). Усі три за замовчуванням вимкнені —
     # поведінка як до фічі; неверне значення — теж вимкнено (SLOT_WAIT — 2) + ERROR
-    # без значення в app.py. Що ставити й чому — deploy/README.md.
+    # без значення в app.py. Що ставити й чому — deploy/site.env.example і
+    # specs/002-bounded-backoffice-calls/spec.md.
     #   QUOTE_CACHE_TTL            — кеш котирування без купона, с (0 = вимкнено);
     #   BACKOFFICE_MAX_CONCURRENT  — стеля одночасних звернень процесу (0 = без стелі);
     #   BACKOFFICE_SLOT_WAIT       — скільки чекати місця під стелею, с.

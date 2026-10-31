@@ -166,7 +166,7 @@ SMOKE_HOSTS=central-aparts.store,www.central-aparts.store,v2.central-aparts.stor
 SMOKE_BACKEND=live npx playwright test
 ```
 
-Канонічного **редиректу** в `deploy/nginx` і `deploy/caddy` зараз нема: усі три імені віддають
+Канонічного **редиректу** на зворотному проксі зараз нема: усі три імені віддають
 сайт, канонічне — лише `<link rel="canonical">` на `SITE_URL`. Сценарій 1 це й перевіряє, а
 редирект, якщо його додадуть, дозволено лише на те саме або канонічне імʼя.
 

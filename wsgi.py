@@ -4,7 +4,7 @@
         --no-control-socket wsgi:application
 
 --no-control-socket: the default control socket path is shared by every
-gunicorn of the same user (see deploy/README.md).
+gunicorn of the same user, so two sites of one user would collide on it.
 
 Replaces the AWS Lambda packaging (`wsgi_adapter.lambda_handler`) for the
 ordinary-server deployment. `wsgi_adapter.py` stays in the repo: it is still

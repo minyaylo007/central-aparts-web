@@ -68,7 +68,7 @@
   }
 
   // ---- Календарі Flatpickr: спільне для пошуку головної і віджета квартири ----
-  // (розбори 30.10 на стенді: docs/PATTERNS.md §8b — головна, §8c — квартира)
+  // (розбори 30.10 на стенді: головна і квартира)
   function isPastDay(d) { return d < new Date(new Date().setHours(0, 0, 0, 0)); }
   // заїзд обрано, виїзд ні → підказка й підсвічене поле виїзду кажуть, що далі
   // (на телефоні календар виїзду сам не відкривається)
@@ -301,7 +301,7 @@
       if (fp && fp.selectedDates.length) fp.input.value = humanDay(fp.selectedDates[0], PAGE_UA);
     }
 
-    // 30.10 (розбір на стенді, docs/PATTERNS.md §8b): на телефоні після заїзду календар виїзду
+    // 30.10 (розбір на стенді, головна): на телефоні після заїзду календар виїзду
     // сам не відкривається — підказка під формою й підсвічене поле кажуть, що далі
     var showNextStep = nextStepHint(document.getElementById('hs-hint'), elCO.closest('.hsearch-field'));
     function updateNextHint() { showNextStep(!!iso(pickCI) && !iso(pickCO)); }
@@ -763,7 +763,7 @@
       });
     }
 
-    // 30.10 (розбір на стенді, docs/PATTERNS.md §8c): тап по закритому дню пояснює причину,
+    // 30.10 (розбір на стенді, квартира): тап по закритому дню пояснює причину,
     // після заїзду видно крок «виїзд», на низькому телефоні календар не йде за край
     function hintText(name) { return elForm ? elForm.getAttribute('data-hint-' + name) : ''; }
     var showNextStep = null;

@@ -291,3 +291,19 @@ def test_no_route_falls_under_scan_rule(app):
         sample = re.sub(r"<[^>]+>", "x", rule.rule)
         for method in sorted((rule.methods or set()) - {"OPTIONS"}):
             assert not _is_scan_404(sample, method), (method, rule.rule)
+
+
+# 03.11 05:35: сканер WordPress перебирав каталоги встановлення (/blog/, /wp/, /cms/,
+# /news/, /press/, /site/), кожен ×2 — без scan=1 сторож брав повтор за битий лінк.
+# Лише точний перший сегмент: схоже ім'я чи вкладений сегмент — звичайний 404.
+def test_404_cms_install_dir_is_scan(client, mock_client, caplog):
+    caplog.set_level(logging.INFO, logger="app")
+    assert client.get("/blog/").status_code == 404
+    assert _levels(caplog) == [(logging.INFO, "http_404 scan=1 method=GET")]
+
+
+@pytest.mark.parametrize("path", ["/blogger", "/apartment/x/news/"])
+def test_404_cms_lookalike_is_not_scan(client, mock_client, caplog, path):
+    caplog.set_level(logging.INFO, logger="app")
+    assert client.get(path).status_code == 404
+    assert all("scan=1" not in x.getMessage() for x in _app_records(caplog))

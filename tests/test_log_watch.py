@@ -403,6 +403,91 @@ def test_beacon_batches_present_no_message(monkeypatch, tmp_path):
     assert sent.lines == []
 
 
+# ---------- хвиля сканера: багато різних 404 за хвилину ----------
+
+LARAVEL_PATHS = [
+    "/login", "/register", "/contact", "/password/reset", "/two-factor-challenge", "/telescope",
+    "/horizon", "/nova", "/filament", "/admin/login", "/dashboard", "/forgot-password",
+    "/email/verify", "/user/profile", "/sanctum/csrf-cookie", "/livewire/update", "/pulse",
+    "/log-viewer", "/_ignition/health-check", "/api/user",
+]
+
+
+def _404(path, level="INFO"):
+    return _line(level, f"http_404 method=GET path={path}")
+
+
+def test_sweep_twenty_paths_six_times_in_minute_no_message(monkeypatch, tmp_path):
+    """03.11 08:03: сканер Laravel, 20 різних шляхів × 6 за хвилину — нуль повідомлень,
+    і в наступних прогонах теж (рядки хвилі не лягли в лічильник)."""
+    assert len(set(LARAVEL_PATHS)) == 20 >= lw.SWEEP_DISTINCT
+    st = str(tmp_path / "st.json")
+    sent = _Sent()
+    monkeypatch.setattr(lw.subprocess, "run", sent)
+    _journal_at(monkeypatch, [(T0 + i % 60, _404(p)) for i, p in enumerate(LARAVEL_PATHS * 6)])
+    lw.run(st, None, dry_run=False, now=T0 + 120)
+    _journal_at(monkeypatch, [])
+    lw.run(st, None, dry_run=False, now=T0 + 720)
+    assert sent.lines == []
+
+
+def test_guest_broken_link_spread_over_minutes_alerts(monkeypatch, tmp_path):
+    """Той самий шлях ×6 у шести різних хвилинах серед 3 фонових 404 — битий лінк, сигнал."""
+    sent = _Sent()
+    monkeypatch.setattr(lw.subprocess, "run", sent)
+    items = [(T0 + 60 * i + 10, _404("/old-page/")) for i in range(6)]
+    items += [(T0 + 60 * i + 20, _404(p)) for i, p in enumerate(["/a.php", "/b/", "/c.html"])]
+    _journal_at(monkeypatch, items)
+    lw.run(str(tmp_path / "st.json"), None, dry_run=False, now=T0 + 600)
+    assert len(sent.lines) == 1
+    assert "INFO http_404 path=/old-page/ ×6" in sent.lines[0]
+    assert "a.php" not in sent.lines[0]
+
+
+def test_warning_inside_sweep_still_alerts(monkeypatch, tmp_path):
+    """Хвиля глушить лише 404: WARNING у тій самій хвилині — сигнал."""
+    sent = _Sent()
+    monkeypatch.setattr(lw.subprocess, "run", sent)
+    items = [(T0 + i % 60, _404(p)) for i, p in enumerate(LARAVEL_PATHS * 6)]
+    items.append((T0 + 30, _line("WARNING", "backoffice_unavailable status=503 call=apartments")))
+    _journal_at(monkeypatch, items)
+    lw.run(str(tmp_path / "st.json"), None, dry_run=False, now=T0 + 120)
+    assert len(sent.lines) == 1
+    assert "WARNING backoffice_unavailable call=apartments ×1" in sent.lines[0]
+    assert "http_404" not in sent.lines[0]
+
+
+def test_sweep_split_between_two_runs_no_message(monkeypatch, tmp_path):
+    """Межа прогонів: прогін посеред хвилини бачить половину хвилі й відкладає її, наступний
+    бачить хвилину цілою — нуль повідомлень. Кожна половина окремо — 10 шляхів × 6, менше
+    SWEEP_DISTINCT: судити половину як цілу хвилину означало б сигнал."""
+    st = str(tmp_path / "st.json")
+    sent = _Sent()
+    monkeypatch.setattr(lw.subprocess, "run", sent)
+    lines = [(T0 + 3 * i, _404(p)) for i, p in enumerate(LARAVEL_PATHS) for _ in range(6)]
+    first = [x for x in lines if x[0] < T0 + 30]
+    assert len({m for _, m in first}) == 10 < lw.SWEEP_DISTINCT
+    _journal_at(monkeypatch, first)
+    lw.run(st, None, dry_run=False, now=T0 + 30)
+    _journal_at(monkeypatch, [x for x in lines if x[0] >= T0 + 30])
+    lw.run(st, None, dry_run=False, now=T0 + 630)
+    assert sent.lines == []
+
+
+def test_open_minute_404_counted_next_run(monkeypatch, tmp_path):
+    """404 незакритої хвилини не губляться: наступний прогін рахує їх як звичайні."""
+    st = str(tmp_path / "st.json")
+    sent = _Sent()
+    monkeypatch.setattr(lw.subprocess, "run", sent)
+    _journal_at(monkeypatch, [(T0 + 60 * i + 5, _404("/old-page/")) for i in range(4)]
+                + [(T0 + 245, _404("/old-page/"))])
+    lw.run(st, None, dry_run=False, now=T0 + 250)       # п'ятий — у незакритій хвилині
+    assert sent.lines == []
+    _journal_at(monkeypatch, [])
+    lw.run(st, None, dry_run=False, now=T0 + 850)
+    assert len(sent.lines) == 1 and "INFO http_404 path=/old-page/ ×5" in sent.lines[0]
+
+
 def _load_fresh():
     spec = importlib.util.spec_from_file_location(
         "log_watch_fresh", Path(__file__).resolve().parent.parent / "scripts" / "log_watch.py")

@@ -180,10 +180,12 @@ _SCAN_404_RE = re.compile(
     r"|\.m?js$"
     # 31.10: останній сегмент — файл із розширенням (/terraform.tfstate, /private_key.pem,
     # /config/aws.json, /settings.py) — сканер. Список імен цю гонку програє, а файлів поза
-    # /static/ сайт віддає лише три — favicon.ico, robots.txt, sitemap.xml у корені. Звідси ж
+    # /static/ сайт віддає лише три — favicon.ico, robots.txt, sitemap.xml у корені (10.11 —
+    # ще фід каталогу Meta /feeds/meta-catalog.csv). Звідси ж
     # *.json на будь-якій глибині. /.well-known/ (security.txt) — не наш, але й не сканер.
     # Маршрут із розширенням — у виняток, інакше впаде test_no_route_falls_under_scan_rule.
-    r"|^(?!/\.well-known/|/(favicon\.ico|robots\.txt|sitemap\.xml)$).*\.[A-Za-z0-9]+$"
+    r"|^(?!/\.well-known/|/(favicon\.ico|robots\.txt|sitemap\.xml|feeds/meta-catalog\.csv)$)"
+    r".*\.[A-Za-z0-9]+$"
     # 31.10: /api/ повз наші API (/api/config, /api/v1/version) — сканер. Наші /api/ кличе
     # лише наш JS, гість їх не набирає і зовнішніх посилань на них нема, тож повтор чужого
     # /api/-шляху — це словник сканера, а не битий лінк. Основи наших — _OWN_API вище.
@@ -208,7 +210,7 @@ _OWN_POST_RE = re.compile(r"^/(book[\w-]*|t|stats[\w-]*|api/(coupon|ux)[\w-]*)(/
 _OWN_404_RE = re.compile(
     r"^(/en)?/(apartment[\w-]*|book[\w-]*|confirmed[\w-]*|api/" + _OWN_API
     + r"|t|stats[\w-]*|lang"
-    r"|health[\w-]*|favicon\.ico|robots\.txt|sitemap\.xml)(/|$)")
+    r"|health[\w-]*|favicon\.ico|robots\.txt|sitemap\.xml|feeds)(/|$)")
 
 
 def _is_scan_404(path: str, method: str) -> bool:
@@ -821,6 +823,58 @@ def sitemap_xml():
             f"{items}</urlset>")
     from flask import Response
     return Response(body, mimetype="application/xml")
+
+
+_FEED_FIELDS = ("id", "title", "description", "availability", "condition", "price", "link",
+                "image_link", "additional_image_link", "brand")
+
+
+def _abs_url(u: str) -> str:
+    return f"{Config.SITE_URL.rstrip('/')}{u}" if u.startswith("/") else u
+
+
+@app.route("/feeds/meta-catalog.csv")
+def meta_catalog_feed():
+    """Фід квартир для каталогу Meta (динамічна реклама в Instagram/Facebook): лише читання
+    каталогу через get_client() — той самий кеш 60 с, що й у головної. id = id квартири з
+    бек-офісу — той самий, що content_ids у подіях пікселя. Ціна — за ніч, як у каталозі;
+    наявність — «in stock» (вільні дати живуть у календарі, фід їх не знає).
+    Збій бек-офісу → 503, а не порожній фід: порожній фід Meta прочитала б як «усі товари
+    видалені» і зняла б рекламу. Квартира без фото не йде у фід — image_link обовʼязковий."""
+    import csv
+    import io
+    from flask import Response
+    lang = request.args.get("lang") if request.args.get("lang") in SUPPORTED_LANGS else DEFAULT_LANG
+    try:
+        apartments = _public_apartments(get_client().list_apartments(lang=lang))
+    except Exception as e:
+        _log_backoffice_error("meta_feed_apartments_failed", e, logging.WARNING)
+        return Response("backoffice unavailable\n", status=503, mimetype="text/plain",
+                        headers={"Retry-After": "300", "Cache-Control": "no-store"})
+    t = get_t(lang)
+    root = Config.SITE_URL.rstrip("/")
+    out = io.StringIO()
+    w = csv.writer(out, lineterminator="\n")
+    w.writerow(_FEED_FIELDS)
+    for a in apartments:
+        photos = [_abs_url(str(p)) for p in (a.get("photos") or []) if p]
+        if not photos:
+            continue
+        name = str(a.get("name") or a.get("code") or "")
+        w.writerow([
+            str(a.get("id")),
+            f"{name} — Central Square Apartments"[:150],
+            str(a.get("description") or t("apt_default_desc1"))[:5000],
+            "in stock",
+            "new",
+            f"{int(a.get('price') or 0)} UAH",
+            f"{root}/apartment/{a.get('id')}",
+            photos[0],
+            ",".join(photos[1:21]),
+            "Central Square Apartments",
+        ])
+    return Response(out.getvalue(), mimetype="text/csv",
+                    headers={"Cache-Control": "public, max-age=900"})
 
 
 # ---------------------------------------------------------------------------

@@ -150,6 +150,38 @@ test.describe('Група 5 · Мова, мобільний, галерея', ()
     expect(jsErrors).toEqual([]);
   });
 
+  test('21е. вузький телефон 360: плейсхолдер дат у віджеті не обрізаний, у героя рядок не починається з крапки', async ({ page, jsErrors }) => {
+    onlyProject('mobile', 'ширина екрана телефона');
+    await page.setViewportSize({ width: 360, height: 740 });
+    for (const lang of ['ua', 'en'] as const) {
+      await page.goto(`/lang/${lang}`);
+      await page.goto(`/apartment/${APT_A}`);
+      for (const sel of ['#picker-checkin', '#picker-checkout']) {
+        // ширина тексту плейсхолдера тим самим шрифтом проти ширини вмісту поля
+        const m = await page.locator(sel).evaluate((el: HTMLInputElement) => {
+          const cs = getComputedStyle(el);
+          const ctx = document.createElement('canvas').getContext('2d')!;
+          ctx.font = `500 ${cs.fontSize} ${cs.fontFamily}`;
+          const pad = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+          return { text: Math.ceil(ctx.measureText(el.placeholder).width), box: el.clientWidth - pad };
+        });
+        expect(m.text, `${lang} ${sel}: ${JSON.stringify(m)}`).toBeLessThanOrEqual(m.box);
+      }
+      await page.goto('/');
+      await page.waitForLoadState('load');
+      const hanging = await page.locator('.hero-trust').evaluate((ul) => {
+        const left = ul.getBoundingClientRect().left;
+        return [...ul.children].filter((li) => {
+          const dot = getComputedStyle(li, '::before');
+          return getComputedStyle(li).display !== 'none' && dot.display !== 'none'
+            && !['none', 'normal'].includes(dot.content) && li.getBoundingClientRect().left - left < 2;
+        }).map((li) => li.textContent!.trim());
+      });
+      expect(hanging, `${lang}: пункти героя з крапкою на початку рядка`).toEqual([]);
+    }
+    expect(jsErrors).toEqual([]);
+  });
+
   test('21б. мобільний: липка панель зʼявляється при прокрутці; без дат веде до календаря', async ({ page, request, jsErrors }) => {
     onlyProject('mobile', 'липка панель є лише ≤768px');
     const [id] = await catalogIds(request);

@@ -1,5 +1,6 @@
 {% extends "public_base.html" %}
 {% block title %}{{ code }} — Central Square Apartments{% endblock %}
+{% block robots_meta %}<meta name="robots" content="noindex">{% endblock %}
 {% block content %}
 <div class="error-page" data-testid="error-page" data-error-code="{{ code }}">
   <div class="container">

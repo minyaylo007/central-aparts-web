@@ -795,17 +795,20 @@ def favicon_ico():
 
 @app.route("/robots.txt")
 def robots_txt():
-    # 31.08: URL будуються від хоста, що реально обслуговує запит (url_root) — щоб
-    # sitemap ніколи не розійшовся з доменом (SITE_URL у конфізі показує на www)
-    root = request.url_root.rstrip("/")
-    body = f"User-agent: *\nAllow: /\nSitemap: {root}/sitemap.xml\n"
+    # 10.11: адреси — від канонічного хоста (SITE_URL), як <link rel="canonical"> і og:url.
+    # Раніше брали хост запиту: голий домен і www віддають 200 обидва, і sitemap голого
+    # перелічував адреси, чий canonical — www (дубль). Sitemap на іншому хості дозволено,
+    # коли на нього вказує robots.txt. Службове (JSON-ручки, панель, перемикач мови) — не індексуємо.
+    root = Config.SITE_URL.rstrip("/")
+    body = ("User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /stats\nDisallow: /lang/\n"
+            f"Sitemap: {root}/sitemap.xml\n")
     from flask import Response
     return Response(body, mimetype="text/plain")
 
 
 @app.route("/sitemap.xml")
 def sitemap_xml():
-    root = request.url_root.rstrip("/")
+    root = Config.SITE_URL.rstrip("/")   # канонічний хост — див. robots_txt
     urls = [f"{root}/"]
     try:
         for a in _public_apartments(get_client().list_apartments(lang=DEFAULT_LANG)):

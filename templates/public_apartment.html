@@ -5,7 +5,10 @@
 {% block meta_desc %}{{ apt.name }} у Чернівцях. {{ apt.price }} грн/ніч. Центр міста, Головна 51. Самостійний заїзд 24/7.{% endblock %}
 {% block og_title %}{{ apt.name }} — Central Square Apartments{% endblock %}
 {% block og_desc %}{{ apt.name }} у центрі Чернівців. {{ apt.price }} грн/ніч. Самостійний заїзд.{% endblock %}
-{% if apt.photos %}{% block og_image %}{{ apt.photos[0] }}{% endblock %}{% endif %}
+{# блок усередині if не умовний — Jinja підставляє його завжди; тож умова — всередині блоку #}
+{% block og_image %}{% if apt.photos %}{{ apt.photos[0] }}{% else %}{{ super() }}{% endif %}{% endblock %}
+{% block og_image_meta %}{% if not apt.photos %}{{ super() }}{% endif %}{% endblock %}
+{% block og_image_alt %}{% if apt.photos %}{{ apt.name }}{% else %}{{ super() }}{% endif %}{% endblock %}
 
 {# шапка суцільна: на світлому фото прозора губила логотип (аудит 21.10, п.10) #}
 {% block nav_class %}nav-solid{% endblock %}
@@ -50,20 +53,44 @@
     photoOf: {{ t("lightbox_photo_of") | tojson }}
   };
 </script>
+{# Квартира — це місце (Apartment) у будинку LodgingBusiness з головної, а ціна «від» — Offer.
+   Наявність не заявляємо: вона залежить від дат, а «InStock завжди» — неправда. #}
+{% set apt_url = config.SITE_URL ~ "/apartment/" ~ apt.id %}
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
-  "@type": "Product",
-  "name": {{ apt.name | tojson }},
-  "description": {{ (apt.description or t("apt_default_desc1")) | tojson }},
-  "image": {{ (apt.photos or []) | tojson }},
-  "offers": {
-    "@type": "Offer",
-    "price": {{ apt.price | int }},
-    "priceCurrency": "UAH",
-    "availability": "https://schema.org/InStock",
-    "url": {{ (config.SITE_URL ~ "/apartment/" ~ apt.id) | tojson }}
-  }
+  "@graph": [
+    {
+      "@type": "Apartment",
+      "@id": {{ (apt_url ~ "#place") | tojson }},
+      "name": {{ apt.name | tojson }},
+      "description": {{ (apt.description or t("apt_default_desc1")) | tojson }},
+      "url": {{ apt_url | tojson }},
+      "image": {{ (apt.photos or []) | tojson }},
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "вул. Головна, 51",
+        "addressLocality": "Чернівці",
+        "addressCountry": "UA"
+      },
+      "containedInPlace": { "@id": {{ (config.SITE_URL ~ "/#lodging") | tojson }} }
+    },
+    {
+      "@type": "Product",
+      "@id": {{ (apt_url ~ "#offer") | tojson }},
+      "name": {{ apt.name | tojson }},
+      "sku": {{ apt.id | string | tojson }},
+      "brand": { "@type": "Brand", "name": "Central Square Apartments" },
+      "description": {{ (apt.description or t("apt_default_desc1")) | tojson }},
+      "image": {{ (apt.photos or []) | tojson }},
+      "offers": {
+        "@type": "Offer",
+        "price": {{ apt.price | int }},
+        "priceCurrency": "UAH",
+        "url": {{ apt_url | tojson }}
+      }
+    }
+  ]
 }
 </script>
 {% endblock %}

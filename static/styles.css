@@ -1925,3 +1925,13 @@ strong, b { font-weight: 600; color: var(--ink); }
 @media (prefers-reduced-motion: reduce) {
   .apt-row:hover { transform: none; }
 }
+
+@media (max-width: 400px) {
+  /* 10.11: на 360 px «від … грн/ніч» переносилась на новий рядок разом із крапкою-роздільником —
+     крапка висіла на початку рядка. Ціна — завжди окремим рядком, без роздільника */
+  .hero-trust-price { flex-basis: 100%; }
+  .hero-trust-price::before { display: none; }
+  /* 10.11: у віджеті квартири на 360 px плейсхолдер «Оберіть дату» обрізався до «Оберіть дат» */
+  .widget-date-half { padding: 0.7rem 0.7rem; }
+  .widget-input { font-size: 0.92rem; text-overflow: ellipsis; }
+}

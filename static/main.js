@@ -49,6 +49,12 @@
     try { (window.dataLayer = window.dataLayer || []).push(p); } catch (e) {}
     try { if (navigator.sendBeacon) navigator.sendBeacon('/api/ux', JSON.stringify(p)); } catch (e) {}
   }
+  // Meta Pixel (10.11): content_ids = id квартири з бек-офісу — той самий id, що в фіді каталогу,
+  // тож реклама знає, ЯКУ квартиру дивились. Суми тут не рахуються — лише передаються.
+  function pixel(ev, data) {
+    if (typeof fbq === 'undefined') return;
+    try { fbq('track', ev, Object.assign({ content_type: 'product' }, data || {})); } catch (e) {}
+  }
   // hidden tab: the browser freezes it, .then runs on return — ms would be minutes (22.10: 97892 ms, server < 0.5 s)
   var nHidden = 0;
   document.addEventListener('visibilitychange', function () { if (document.hidden) nHidden++; });
@@ -579,6 +585,8 @@
       }
       function done(summary) {
         searching = false;
+        var found = (summary && summary.freeIds && summary.freeIds.length) ? summary.freeIds : (elApt && elApt.value ? [elApt.value] : []);
+        pixel('Search', { content_ids: found, checkin_date: ci, checkout_date: co, num_adults: guests });
         if (btn) btn.classList.remove('is-loading');
         if (icon) icon.className = 'bi bi-search';
         var chosen = elApt && elApt.value;
@@ -1066,7 +1074,7 @@
           resolveCouponStatus(q);
           track('quote_result', Object.assign(elapsed(t0, h0), { nights: q.nights, coupon: !!couponPhone, applied: typeof q.coupon_discount === 'number', has_booking: typeof q.booking_total === 'number', est_diff: q.base_amount - (lastEstimateBase || q.base_amount) }));
           if (cb) cb(q);
-          if (typeof fbq !== 'undefined' && !icSent) { icSent = true; fbq('track', 'InitiateCheckout', { value: total, currency: 'UAH' }); }
+          if (!icSent) { icSent = true; pixel('InitiateCheckout', { content_ids: [String(APT_ID)], num_items: 1, value: total, currency: 'UAH' }); }
         })
         .catch(function () {
           if (epoch !== quoteEpoch) return;
@@ -1074,7 +1082,7 @@
           if (!lastQuote) { setOpt(elCouponRow, false); setOpt(elBookRow, false); setOpt(elSaveRow, false); setOpt(elScarcity, false); }
           track('quote_fail', elapsed(t0, h0));
           if (cb) cb(null);
-          if (typeof fbq !== 'undefined' && !icSent) { icSent = true; fbq('track', 'InitiateCheckout', { value: nights * APT_PRICE + nights * guests * TOURIST_TAX_PER_GUEST_NIGHT, currency: 'UAH' }); }
+          if (!icSent) { icSent = true; pixel('InitiateCheckout', { content_ids: [String(APT_ID)], num_items: 1, value: nights * APT_PRICE + nights * guests * TOURIST_TAX_PER_GUEST_NIGHT, currency: 'UAH' }); }
         })
         .then(function () { if (epoch === quoteEpoch && elBreakdown) elBreakdown.removeAttribute('aria-busy'); });
     }

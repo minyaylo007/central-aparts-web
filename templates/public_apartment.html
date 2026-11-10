@@ -52,6 +52,11 @@
     photo:   {{ t("lightbox_photo") | tojson }},
     photoOf: {{ t("lightbox_photo_of") | tojson }}
   };
+  // Meta Pixel: перегляд квартири; id — як у фіді каталогу, ціна за ніч — з бек-офісу
+  if (typeof fbq !== 'undefined') {
+    fbq('track', 'ViewContent', { content_ids: [{{ apt.id | string | tojson }}], content_type: 'product',
+                                  content_name: {{ apt.name | tojson }}, value: {{ apt.price | int }}, currency: 'UAH' });
+  }
 </script>
 {# Квартира — це місце (Apartment) у будинку LodgingBusiness з головної, а ціна «від» — Offer.
    Наявність не заявляємо: вона залежить від дат, а «InStock завжди» — неправда. #}

@@ -98,15 +98,30 @@
 </div>
 
 <script>
-if (typeof fbq !== 'undefined') {
+// Purchase — лише з номером броні й один раз на бронь: eventID = номер (дедуплікація з
+// майбутніми серверними подіями), повторне відкриття сторінки подію не дублює.
+// Сторінку без номера (ref) покупкою не рахуємо.
+{% if booking_id %}
+(function () {
+  if (typeof fbq === 'undefined') return;
+  var id = {{ booking_id | tojson }}, key = 'cs_purchase_' + id;
+  try { if (localStorage.getItem(key)) return; localStorage.setItem(key, '1'); } catch (e) {}
+  var data = { currency: 'UAH', content_type: 'product' };
   {% if group_total is not none %}
-  fbq('track', 'Purchase', { value: {{ group_total | tojson }}, currency: 'UAH' });
+  data.value = {{ group_total | tojson }};
   {% elif booking and booking.total is not none %}
-  fbq('track', 'Purchase', { value: {{ booking.total | tojson }}, currency: 'UAH' });
-  {% else %}
-  fbq('track', 'Purchase', { currency: 'UAH' });
+  data.value = {{ booking.total | tojson }};
   {% endif %}
-}
+  {% set group_items = ((booking or {}).get("group") or {}).get("items") or [] %}
+  {% if group_items %}
+  data.content_ids = {{ group_items | map(attribute="apartment_id") | map("string") | list | tojson }};
+  data.num_items = {{ group_items | length }};
+  {% elif booking and booking.apartment_id %}
+  data.content_ids = [{{ booking.apartment_id | string | tojson }}];
+  {% endif %}
+  fbq('track', 'Purchase', data, { eventID: id });
+})();
+{% endif %}
 </script>
 {% endblock %}
 

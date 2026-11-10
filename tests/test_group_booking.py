@@ -398,14 +398,14 @@ def test_confirmed_page_lists_every_room_and_group_total(client, mock_client):
     items = re.findall(r"<li>(.*?)</li>", lst, re.S)
     assert [re.sub(r"\s+", " ", i).strip() for i in items] == [
         "Апартаменти A · 2 гост.", "Апартаменти B · 3 гост.", "Z · 1 гост."]
-    assert "9881" in html and "value: 9881" in html
+    assert "9881" in html and "data.value = 9881;" in html
     assert "second-apt-card" not in html          # обидві квартири вже в броні — нема що пропонувати
 
 
 def test_confirmed_page_single_booking_unchanged(client):
     html = client.get("/booking-confirmed?ref=test1234").get_data(as_text=True)
     assert 'id="group-confirmed-list"' not in html
-    assert "5220" in html and "value: 5220" in html
+    assert "5220" in html and "data.value = 5220;" in html
 
 
 # --- JS: гроші рахує лише сервер ----------------------------------------------------

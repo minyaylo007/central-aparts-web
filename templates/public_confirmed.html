@@ -1,6 +1,7 @@
 {% extends "public_base.html" %}
 
 {% block title %}{{ t("booking_confirmed") }} — Central Square Apartments{% endblock %}
+{% block robots_meta %}<meta name="robots" content="noindex">{% endblock %}
 
 {% block content %}
 {# дата для гостя «22 жовтня 2026»; машинна ISO лишається в datetime (аудит 21.10, п.2) #}

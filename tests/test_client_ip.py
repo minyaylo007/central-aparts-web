@@ -425,8 +425,10 @@ def test_us2_request_untouched_all_topologies(client, mock_client, mode):
     X-Forwarded-Proto / -Host / -For; (а) — ще й через Lambda."""
     mode(None)
     baseline = _seo_bodies(client)
-    assert b"Sitemap: https://www.example.test/sitemap.xml" in baseline[0]
-    assert b"<loc>https://www.example.test/</loc>" in baseline[1]
+    from config import Config
+    root = Config.SITE_URL.rstrip("/").encode()
+    assert b"Sitemap: " + root + b"/sitemap.xml" in baseline[0]
+    assert b"<loc>" + root + b"/</loc>" in baseline[1]
     lambda_baseline = _lambda_seo_bodies(None)
     assert lambda_baseline == tuple(b.decode("utf-8") for b in baseline)
     lambda_xff = TOPOLOGIES["a_cloudfront_lambda"][0]

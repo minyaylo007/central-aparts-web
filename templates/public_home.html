@@ -19,8 +19,10 @@
 {
   "@context": "https://schema.org",
   "@type": "LodgingBusiness",
+  "@id": {{ (config.SITE_URL ~ "/#lodging") | tojson }},
   "name": "Central Square Apartments",
   "url": {{ config.SITE_URL | tojson }},
+  "sameAs": ["https://instagram.com/Central_Square_CV"],
   "image": {{ (config.SITE_URL ~ "/static/img/hero.webp") | tojson }},
   "telephone": "+380502648312",
   "address": {

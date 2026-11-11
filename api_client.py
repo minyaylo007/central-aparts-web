@@ -290,6 +290,17 @@ def _cached(key, ttl: float, fetch):
         event.set()
 
 
+def _failure_cause(e: BaseException) -> str:
+    """Хвіст рядка журналу: чому бек-офіс не відповів — ` cause=<клас>` і, якщо є
+    код HTTP, ` status=<код>`. Лише ім'я класу й число: текст винятку несе URL
+    (у requests — з query), тому в журнал не йде."""
+    status = getattr(e, "status", None)
+    if not isinstance(status, int):
+        status = getattr(getattr(e, "response", None), "status_code", None)
+    tail = f" cause={type(e).__name__}"
+    return f"{tail} status={status}" if isinstance(status, int) else tail
+
+
 def _fetch_and_store(key, ttl: float, fetch, hit):
     quiet = hit is not None and time.time() - (hit[0] - ttl) < _STALE_QUIET_S
     _stale_fallback.quiet = quiet
@@ -299,7 +310,8 @@ def _fetch_and_store(key, ttl: float, fetch, hit):
         if hit:  # serve stale on upstream failure rather than erroring the page
             calm = quiet and isinstance(e, BackofficeUnavailable) and e.status == 429
             level = logging.INFO if calm else logging.WARNING
-            _stale_log.warn("key=%s", key, key=(key[0], level), level=level)
+            _stale_log.warn("key=%s%s", key, _failure_cause(e), key=(key[0], level),
+                            level=level)
             return hit[1]
         raise
     finally:

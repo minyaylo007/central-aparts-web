@@ -52,18 +52,54 @@ def test_stale_served_rate_limited_per_kind(clock, caplog):
     for _ in range(50):                               # гість щоразу бачить устареле, як і раніше
         assert api_client._cached(apts, 60, _down) == ["warm"]
     assert _lines(caplog, "backoffice_stale_served") == [
-        "backoffice_stale_served key=('apartments', 'ua') suppressed=0"]
+        "backoffice_stale_served key=('apartments', 'ua') cause=ConnectionError suppressed=0"]
     assert api_client._cached(avail, 30, _down) == ["busy"]     # інший вид — свій рядок
     assert _lines(caplog, "backoffice_stale_served")[-1] == (
-        "backoffice_stale_served key=('availability', 'apt-uuid-a') suppressed=0")
+        "backoffice_stale_served key=('availability', 'apt-uuid-a') cause=ConnectionError suppressed=0")
     clock.t += api_client._STALE_LOG_INTERVAL - 1
     api_client._cached(apts, 60, _down)               # ще в інтервалі — пропущено (50-й)
     assert len(_lines(caplog, "backoffice_stale_served")) == 2
     clock.t += 1
     api_client._cached(apts, 60, _down)
     assert _lines(caplog, "backoffice_stale_served")[-1] == (
-        "backoffice_stale_served key=('apartments', 'ua') suppressed=50")
+        "backoffice_stale_served key=('apartments', 'ua') cause=ConnectionError suppressed=50")
     assert all(r.exc_info is None for r in caplog.records)
+
+
+def _raiser(exc):
+    def fetch():
+        raise exc
+    return fetch
+
+
+def _http_error(status):
+    import requests
+    resp = requests.Response()
+    resp.status_code = status
+    resp.url = "https://backoffice.invalid/api/public/apartments?phone=SECRET-QUERY"
+    return requests.HTTPError(f"{status} Server Error for url: {resp.url}", response=resp)
+
+
+@pytest.mark.parametrize("exc, tail", [
+    (api_client.BackofficeUnavailable(503, 30, "apartments"),
+     "cause=BackofficeUnavailable status=503"),                      # техроботи бек-офісу
+    (_http_error(502), "cause=HTTPError status=502"),                # 5xx через raise_for_status
+    (TimeoutError("https://backoffice.invalid/x?phone=SECRET-QUERY"),
+     "cause=TimeoutError"),                                          # без відповіді — без status
+], ids=["unavailable-503", "http-502", "no-response"])
+def test_stale_served_names_cause_without_exception_text(clock, caplog, exc, tail):
+    """У рядку — клас винятку і код HTTP (якщо є); тексту винятку й URL нема."""
+    caplog.set_level(logging.DEBUG, logger="api_client")
+    key = ("apartments", "ua")
+    api_client._cached(key, 60, lambda: ["warm"])
+    clock.t += api_client._STALE_QUIET_S + 61
+    assert api_client._cached(key, 60, _raiser(exc)) == ["warm"]
+    assert _lines(caplog, "backoffice_stale_served") == [
+        f"backoffice_stale_served key=('apartments', 'ua') {tail} suppressed=0"]
+    rec = caplog.records[-1]
+    assert rec.levelno == logging.WARNING and rec.exc_info is None
+    for leak in ("SECRET-QUERY", "http", "backoffice.invalid", "Server Error"):
+        assert leak not in rec.getMessage()
 
 
 def test_helper_default_one_line_per_second(clock, caplog):

@@ -31,6 +31,8 @@ export type Traffic = {
   offsite: { from: string; status: number; location: string }[];
   /** Навігації чужих iframe, які браузер скасував до route (у мережу не виходили), — не порушення. */
   cancelled: string[];
+  /** Сторонні URL, які сценарій навмисно обриває (route.abort): «CDN не дійшов». Заповнює тест. */
+  abort: RegExp[];
 };
 
 export type JsError = { kind: 'pageerror' | 'console'; text: string; url: string };
@@ -162,6 +164,7 @@ export async function guardThirdParty(context: BrowserContext, log: Traffic) {
       log.violations.push(`браузер пише в бек-офіс напряму: ${req.method()} ${url.href}`);
       return route.abort();
     }
+    if (log.abort.some((re) => re.test(url.href))) return route.abort('blockedbyclient');
     if (url.hostname === 'cdn.jsdelivr.net') return serveCdnFromNodeModules(route, url, log);
     log.stubbed.push(`${req.method()} ${url.href}`);
     return stubThirdParty(route, url);
@@ -187,7 +190,7 @@ export function skipWritesInLive(what: string) {
 export const test = base.extend<{ traffic: Traffic; jsErrors: JsError[] }>({
   traffic: [
     async ({ context }, use) => {
-      const log: Traffic = { stubbed: [], cdn: [], violations: [], offsite: [], cancelled: [] };
+      const log: Traffic = { stubbed: [], cdn: [], violations: [], offsite: [], cancelled: [], abort: [] };
       await guardThirdParty(context, log);
       await use(log);
       if (log.cancelled.length) {

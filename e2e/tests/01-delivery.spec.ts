@@ -113,6 +113,31 @@ test.describe('Група 1 · Доставка', () => {
     expect(jsErrors).toEqual([]);
   });
 
+  // 21.11: Swiper з CDN не дійшов (блокувальник) → new Swiper кидав ReferenceError, і фото карток
+  // (data-src нижче в тому ж скрипті) не підвантажувались — гість бачив порожні картки
+  test('4б. Swiper з CDN не дійшов: головна і квартира без винятків, фото карток на місці',
+    { tag: '@critical' }, async ({ page, jsErrors, traffic }) => {
+    traffic.abort.push(/^https:\/\/cdn\.jsdelivr\.net\/npm\/swiper@[^/]+\/swiper-bundle\.min\.js$/);
+    await page.goto('/');
+    await page.waitForLoadState('load');
+    expect(await page.evaluate(() => typeof (window as any).Swiper), 'Swiper мав не завантажитись').toBe('undefined');
+
+    const imgs = page.locator('img.apt-row-img');
+    expect(await imgs.count()).toBeGreaterThan(0);
+    await expect(page.locator('img.apt-row-img[data-src]')).toHaveCount(0);
+    for (const src of await imgs.evaluateAll((els) => els.map((e) => e.getAttribute('src')))) {
+      expect(src, 'фото картки без src').toBeTruthy();
+    }
+
+    const href = await page.locator('a[data-apt]').first().getAttribute('href');
+    await page.goto(href!);
+    await page.waitForLoadState('load');
+    await page.setViewportSize({ width: 390, height: 800 }); // мобільна ширина: initAptSwiper спрацьовує й тут
+    await expect(page.locator('.apt-hero-swiper')).toHaveCount(1);
+
+    expect(jsErrors.filter((e) => e.kind === 'pageerror')).toEqual([]);
+  });
+
   for (const id of ['00000000-0000-4000-8000-000000000000', 'smoke-no-such-apartment']) {
     test(`5. неіснуюча квартира ${id} → сторінка 404, не трейс`, async ({ page, jsErrors }) => {
       const resp = await page.goto(`/apartment/${id}`);

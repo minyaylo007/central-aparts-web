@@ -465,7 +465,9 @@
 var _reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 // autoplay desktop-only: photos sliding next to text reads as "the page jumps" on phones
 var _autoplayOk = window.innerWidth >= 768 && !_reduce;
-document.querySelectorAll('.apt-photo-swiper').forEach(function(el) {
+// Swiper з CDN може не дійти (блокувальник, мережа): без нього слайди лишаються як є,
+// а фото карток нижче все одно підвантажуються
+if (typeof Swiper === 'function') document.querySelectorAll('.apt-photo-swiper').forEach(function(el) {
   var n = el.querySelectorAll('.swiper-slide').length;
   new Swiper(el, {
     loop: n > 1,

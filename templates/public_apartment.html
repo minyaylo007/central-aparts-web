@@ -446,7 +446,8 @@
 var heroEl = document.querySelector('.apt-hero-swiper');
 var aptSwiper = null;
 function initAptSwiper() {
-  if (aptSwiper || !heroEl) return;
+  // Swiper з CDN може не дійти: галерея лишається як є, без помилки
+  if (aptSwiper || !heroEl || typeof Swiper !== 'function') return;
   var galleryTotal = heroEl.querySelectorAll('.swiper-slide:not(.swiper-slide-duplicate)').length;
   aptSwiper = new Swiper(heroEl, {
     loop: galleryTotal > 1,

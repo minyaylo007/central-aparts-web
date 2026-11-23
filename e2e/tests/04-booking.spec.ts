@@ -189,6 +189,10 @@ test.describe('Група 4 · Бронювання до Монобанку', { 
   // новий ключ на повторний submit, запасний шлях без crypto.randomUUID.
   test('18в. Idempotency-Key: UUID з браузера доїхав до бек-офісу, на кожен submit — новий; без randomUUID — getRandomValues', async ({ page, request, jsErrors }) => {
     skipWritesInLive('POST /book');
+    // Три повні сценарії «квартира → дати → котирування → форма → Монобанк» в одному тесті: сам по
+    // собі ~16 с, у 4 воркери на завантаженій машині — 40–45 с (24.11.2026, trace: повільнішає кожен
+    // крок рівномірно, відповіді сервера < 0.3 с — це бюджет часу, а не очікування в коді сайту).
+    test.slow();
     const UUID4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
     const keyOf = (r: Request) => new URLSearchParams(r.postData() ?? '').get('idempotency_key') ?? '';
     const stay = await openAWithStay(page, request);

@@ -87,6 +87,32 @@ test.describe('Група 7 · Статистика', () => {
     await expect.poll(got, { timeout: 8000 }).toEqual(['dd span#day 2', 'dd span#hand 2', 'dx p#decor 2']);
   });
 
+  // 23.11: гість натиснув «Забронювати» в hero-пошуку й пішов — обрив запитів переходом дав je
+  // «The I/O read operation failed.». Обрив при відході — не je; той самий обрив на живій сторінці — je.
+  // Submit без дат лише відкриває календар (preventDefault), тож сторінка лишається і пакет видно.
+  test('мережевий обрив після submit hero-пошуку — без je, на живій сторінці — je', async ({ page }) => {
+    const events: any[] = [];
+    page.on('request', (r) => {
+      if (new URL(r.url()).pathname !== '/t') return;
+      try { events.push(...(JSON.parse(r.postData() ?? '{}').e ?? [])); } catch { /* шматок запису rrweb */ }
+    });
+    const je = () => events.filter((e) => e.k === 'je').map((e) => `${e.src} ${e.m}`);
+    await page.goto('/');
+    await page.evaluate(() => {
+      (document.getElementById('heroSearch') as HTMLFormElement).requestSubmit();
+      Promise.reject(new TypeError('Load failed'));
+      Promise.reject(new Error('marker після submit'));
+    });
+    // уміє сказати «так»: інша помилка промісу після submit — je як раніше
+    await expect.poll(je, { timeout: 8000 }).toContain('promise marker після submit');
+    expect(je(), 'обрив при відході — без je').not.toContain('promise Load failed');
+
+    await page.goto('/');
+    events.length = 0;
+    await page.evaluate(() => { Promise.reject(new TypeError('Load failed')); });
+    await expect.poll(je, { timeout: 8000 }).toContain('promise Load failed');
+  });
+
   test.describe('палець', () => {
     test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
     // 30.10, гіпотеза (б) з розбору (14): Flatpickr відкривається поверх поля ще до click, тож click

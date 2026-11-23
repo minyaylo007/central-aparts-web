@@ -180,7 +180,24 @@ if (fo) W.fetch = function (u) {
 var nerr = 0, lcp = 0, cls = 0, inp = 0, vsent = 0, fh = D.visibilityState === 'hidden' ? 0 : 1 / 0;
 var je = function (m, src, ln) { if (nerr++ < 10) push({ k: 'je', m: String(m).slice(0, 200), src: src, ln: ln }); };
 on(W, 'error', function (ev) { if (ev.message) je(ev.message, ev.filename || '', ev.lineno || 0); });
-on(W, 'unhandledrejection', function (ev) { var r = ev.reason; je((r && r.message) || r, 'promise', 0); });
+// 23.11: мережевий обрив, коли сторінка йде (submit, своє посилання, beforeunload/pagehide, вкладка
+// hidden), — не поломка: je не пишемо. На живій сторінці й будь-яка інша помилка — як раніше.
+// Hero-пошук сам робить preventDefault і йде через location.href — тому вікно 3 с, а не defaultPrevented.
+var gone = 0, bye = function () { gone = now(); },
+  NET = /^(Failed to fetch|Load failed|NetworkError|The I\/O read operation failed|The network connection was lost)/;
+on(D, 'submit', bye, true); on(W, 'beforeunload', bye); on(W, 'pagehide', bye);
+on(W, 'pageshow', function () { gone = 0; });
+on(D, 'click', function (ev) {
+  try {
+    var a = ev.target.closest('a[href]');
+    if (a && a.origin === L.origin && a.target !== '_blank' && !a.hasAttribute('download') && a.getAttribute('href')[0] !== '#') bye();
+  } catch (x) {}
+}, true);
+var netGone = function (r) {
+  return !!r && (r.name === 'AbortError' || ((r.name === 'TypeError' || r.name === 'NetworkError') && NET.test(String(r.message))))
+    && (now() - gone < 3000 || D.visibilityState === 'hidden');
+};
+on(W, 'unhandledrejection', function (ev) { var r = ev.reason; if (!netGone(r)) je((r && r.message) || r, 'promise', 0); });
 var po = function (o, cb) {
   try { o.buffered = true; new PerformanceObserver(function (l) { l.getEntries().forEach(cb); }).observe(o); } catch (e) {}
 };

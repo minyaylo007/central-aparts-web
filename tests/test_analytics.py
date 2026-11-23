@@ -341,7 +341,8 @@ def test_script_size_and_safety():
     src = open(path, encoding="utf-8").read()
     # 30.10: 10 → 11 КБ — крок «дати (головна)», сторож мертвого кліку й прапор «сховано до LCP»
     # 30.10 (2): 11 → 13 КБ — правило dead 2: ціль від pointerdown, dd/dx, свій сторож на тап
-    assert len(src.encode()) < 13 * 1024
+    # 23.11: 13 → 14 КБ — мережевий обрив при відході сторінки не пишеться як je
+    assert len(src.encode()) < 14 * 1024
     assert "maskAllInputs: true" in src and "#booking-form" in src
     assert "document.cookie" not in src and "localStorage" not in src
 
@@ -532,3 +533,19 @@ def test_beacon_dead_rule_v2_in_script():
     assert ".flatpickr-day" in src and "cursor === 'pointer'" in src
     assert "'dd' : 'dx'" in src and "d.dv = 2" in src
     assert "'pointerdown'" in src and "t.contains(pd.el)" in src
+
+
+def test_beacon_skips_network_abort_on_leave():
+    """23.11: гість на «/» натиснув «Забронювати» — за 0,2 с пішов на квартиру, а unhandledrejection
+    записав je «The I/O read operation failed.» (обрив запитів переходом). Обрив при відході — не
+    поломка; на живій сторінці й інші помилки промісів — je як раніше. Поведінку стереже смока 07."""
+    src = open(os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "analytics.js"),
+               encoding="utf-8").read()
+    for msg in ("Failed to fetch", "Load failed", "NetworkError", r"The I\/O read operation failed",
+                "The network connection was lost"):
+        assert msg in src
+    assert "r.name === 'AbortError'" in src
+    for ev in ("on(D, 'submit', bye, true)", "on(W, 'beforeunload', bye)", "on(W, 'pagehide', bye)"):
+        assert ev in src
+    assert "a.origin === L.origin" in src and "D.visibilityState === 'hidden'" in src
+    assert "if (!netGone(r)) je(" in src

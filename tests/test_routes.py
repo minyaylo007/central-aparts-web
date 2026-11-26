@@ -15,7 +15,6 @@ BOOK_FORM = {"check_in": "2026-05-20", "check_out": "2026-05-23", "guests": "2",
              "name": "Тест Тестів", "phone": "+380000000000"}
 TEST_APT = {"id": "apt-uuid-test", "code": "TEST", "name": "Тестова кімната",
             "price": 1, "amenities": [], "description": "", "photos": []}
-CROSS_SELL = "Потрібен другий апартамент".encode()
 
 
 class TestHomePage:
@@ -27,6 +26,15 @@ class TestHomePage:
         assert "Апартаменти B".encode() in r.data
         digits = re.sub(r"\D", "", " ".join(re.findall(r'class="price-value">([^<]*)<', r.get_data(as_text=True))))
         assert "1490" in digits and "1850" in digits
+
+    def test_home_short_reviews_badge_only_partner_in_footer(self, client, mock_client):
+        """Аудит 26.11, п.6: у #reviews — лише бейдж Booking, блок власникам — посилання в підвалі."""
+        html = client.get("/").get_data(as_text=True)
+        assert 'class="booking-badge"' in html
+        assert "trust-grid" not in html
+        assert 'id="contact-cta"' not in html
+        footer = html[html.index('<footer'):]
+        assert "Здати нерухомість в управління" in footer
 
     def test_home_empty_apartments(self, client, mock_client):
         mock_client.apartments = []
@@ -92,44 +100,38 @@ class TestBooking:
 
 
 class TestBookingConfirmed:
-    def test_confirmed_with_ref_shows_details_and_cross_sell(self, client, mock_client):
+    def test_confirmed_with_ref_shows_details_without_cross_sell(self, client, mock_client):
         r = client.get("/booking-confirmed?ref=test1234")
+        html = r.get_data(as_text=True)
         assert r.status_code == 200
-        assert "підтверджено".encode() in r.data
-        assert b"2026-05-01" in r.data  # check_in from mock
-        assert CROSS_SELL in r.data
-        # booked apt-uuid-a → offer apt-uuid-b with the booking's dates
-        assert b"/apartment/apt-uuid-b?check_in=2026-05-01&check_out=2026-05-04" in r.data
+        assert "підтверджено" in html
+        assert "2026-05-01" in html  # check_in from mock
+        assert "/pay/test1234" in html
+        assert "5\u00a0220 грн" in html          # сума — як у віджеті (аудит 26.11, п.8)
+        assert "Потрібен другий апартамент" not in html
+        assert "Що далі?" not in html            # «що далі» — один рядок, не три кроки
 
-    def test_confirmed_without_booking_data(self, client, mock_client):
-        """No ref or unknown ref: page still loads, no cross-sell block."""
-        for url in ("/booking-confirmed", "/booking-confirmed?ref=unknown"):
+    def test_unknown_ref_or_no_ref_is_not_confirmed(self, client, mock_client):
+        """Аудит 26.11, п.4: бронь за ref не знайдено — нейтральний текст і контакт,
+        без «підтверджено», без кнопки до документів і без події Purchase."""
+        for url in ("/booking-confirmed?ref=nonexistent", "/booking-confirmed"):
             r = client.get(url)
+            html = r.get_data(as_text=True)
             assert r.status_code == 200
-            assert "підтверджено".encode() in r.data
-            assert CROSS_SELL not in r.data
+            assert "підтверджено" not in html
+            assert "Не бачимо цього бронювання" in html
+            assert "/pay/" not in html
+            assert "'Purchase'" not in html
+            assert "tel:+380502648312" in html
 
-    def test_no_cross_sell_without_other_public_apartment(self, client, mock_client):
-        """Only one apartment — nothing to offer; the only other one is the
-        1-UAH TEST apartment — offer nothing either."""
-        mock_client.apartments = [a for a in mock_client.apartments if a["id"] == "apt-uuid-a"]
-        r = client.get("/booking-confirmed?ref=test1234")
-        assert r.status_code == 200
-        assert CROSS_SELL not in r.data
-        mock_client.apartments.append(dict(TEST_APT))
-        r = client.get("/booking-confirmed?ref=test1234")
-        assert r.status_code == 200
-        assert CROSS_SELL not in r.data
-        assert b"apt-uuid-test" not in r.data
-
-    def test_confirmed_survives_list_error(self, client, mock_client):
-        """Cross-sell must never break the confirmation page."""
-        def boom(lang="ua"):
+    def test_confirmed_survives_backoffice_error(self, client, mock_client):
+        """Бек-офіс не відповів — сторінка жива, але нічого не обіцяє."""
+        def boom(booking_id):
             raise RuntimeError("api down")
-        mock_client.list_apartments = boom
+        mock_client.get_booking = boom
         r = client.get("/booking-confirmed?ref=test1234")
         assert r.status_code == 200
-        assert "підтверджено".encode() in r.data
+        assert "підтверджено".encode() not in r.data
 
 
 class TestLang:

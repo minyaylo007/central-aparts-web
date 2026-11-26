@@ -52,7 +52,9 @@ test.describe('Група 8 · Meta Pixel', () => {
       await (await dayCell(input, await calendarFor(page, input), iso)).click();
     }
     await page.locator('#heroSearch .hsearch-submit').click();
-    await page.waitForURL(/\/apartment\//);
+    // 26.11: вільні обидві — гість лишається на списку, вільна одна — перехід на квартиру;
+    // подія Search однакова в обох гілках, тож чекаємо саму подію, а не адресу
+    await expect.poll(() => tracked(page, 'Search')).toHaveLength(1);
     const searches = await tracked(page, 'Search');
     expect(searches).toHaveLength(1);
     expect(searches[0]).toMatchObject({ content_type: 'product', checkin_date: s!.ci, checkout_date: s!.co });

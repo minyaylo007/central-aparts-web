@@ -621,8 +621,8 @@
 
     var TOURIST_TAX_PER_GUEST_NIGHT = 48; // UAH — matches backoffice default
     var pickerCI = null, pickerCO = null, checkin = null, checkout = null, guests = 2;
-    // auto-opening the second calendar makes the page jump on phones — desktop only
-    var autoOpenCheckout = window.innerWidth >= 768;
+    // аудит 26.11, п.2: календар виїзду відкривається сам і на телефоні (на 390 px сторінка не зсувається — смока 24а)
+    var autoOpenCheckout = true;
 
     var elCheckinInput = document.getElementById('picker-checkin');
     var elCheckoutInput = document.getElementById('picker-checkout');
@@ -669,6 +669,8 @@
     var elBtnBookTxt = document.getElementById('btn-book-txt');
     var lang_ua = (typeof LANG !== 'undefined' && LANG === 'ua');
     var stickySuppress = function (on) { if (elStickyBar) elStickyBar.classList.toggle('kbd', !!on); };
+    // заїзд закривається вже ПІСЛЯ того, як сам відкрився виїзд: панель повертається, лише коли закриті обидва
+    var stickyAfterClose = function () { stickySuppress((pickerCI && pickerCI.isOpen) || (pickerCO && pickerCO.isOpen)); };
 
     var blockedRanges = (typeof BLOCKED_DATES !== 'undefined' ? (BLOCKED_DATES || []) : []).map(function (b) {
       return { from: parseLocalDate(b.from), to: parseLocalDate(b.to) };
@@ -736,7 +738,7 @@
         locale: fpLocale, disableMobile: true, onDayCreate: onDayCreate, onValueUpdate: onValueHuman,
         disable: [function (date) { return blockedRanges.some(function (b) { return date >= b.from && date < b.to; }); }],
         onOpen: function () { stickySuppress(true); },
-        onClose: function () { stickySuppress(false); },
+        onClose: stickyAfterClose,
         onChange: function (dates) {
           if (!dates.length) { checkin = null; elCheckin.value = ''; hideBreakdown(); return; }
           checkin = dates[0];
@@ -760,7 +762,7 @@
           return blockedRanges.some(function (b) { return checkin < b.to && date > b.from; });
         }],
         onOpen: function () { stickySuppress(true); },
-        onClose: function () { stickySuppress(false); },
+        onClose: stickyAfterClose,
         onChange: function (dates) {
           if (!dates.length) { checkout = null; elCheckout.value = ''; hideBreakdown(); return; }
           checkout = dates[0];

@@ -609,8 +609,13 @@ test.describe('Група 5 · Мова, мобільний, галерея', ()
     const stay = freeStay(await availability(page.request, APT_A), 2, addDays(today(), 2))!;
     await calendarFor(page, ci);
     const scrollY = () => page.evaluate(() => window.scrollY);
-    const before = await scrollY();
+    // точка відліку — сам вибір заїзду: Playwright перед тапом може докрутити день до екрана, це не стрибок.
+    // Лише читаємо: перший обробник onChange запамʼятовує scrollY до того, як сайт відкриє виїзд
+    await ci.evaluate((el) => {
+      (el as any)._flatpickr.config.onChange.unshift(() => { (window as any).__ciPickY = window.scrollY; });
+    });
     await (await heroDay(page, ci, stay.ci)).tap();
+    const before = await page.evaluate(() => (window as any).__ciPickY as number);
     await expect(page.locator('#f-check-in')).toHaveValue(stay.ci);
     await expect.poll(() => co.evaluate((el) => !!(el as any)._flatpickr?.isOpen), 'виїзд не відкрився сам').toBe(true);
     await expect(page.locator('.flatpickr-calendar.open')).toHaveCount(1);
@@ -655,12 +660,21 @@ test.describe('Група 5 · Мова, мобільний, галерея', ()
       const span = boxes[3].y + boxes[3].height - boxes[0].y;
       expect(span, 'від «Разом» до низу кнопки — не більше екрана без шапки').toBeLessThanOrEqual(844 - nav);
     }).toPass({ timeout: 5_000 });
-    // і справді разом на екрані: «Разом» під шапкою → решта видна без прокрутки
-    await total.evaluate((el) => {
-      const nav = document.getElementById('siteNav')!.getBoundingClientRect().height;
-      window.scrollTo({ top: window.scrollY + el.getBoundingClientRect().top - nav - 8, behavior: 'instant' as ScrollBehavior });
-    });
-    for (const l of parts) await expect(l).toBeInViewport({ ratio: 1 });
+    // і справді разом на екрані: «Разом» під шапкою → решта видна без прокрутки.
+    // Прокрутка й замір — одним кроком з повтором: у CI верстка над віджетом ще доїжджала після scrollTo
+    await expect(async () => {
+      await total.evaluate((el) => {
+        const nav = document.getElementById('siteNav')!.getBoundingClientRect().height;
+        window.scrollTo({ top: window.scrollY + el.getBoundingClientRect().top - nav - 8, behavior: 'instant' as ScrollBehavior });
+      });
+      await page.waitForTimeout(150);
+      const nav = await page.locator('#siteNav').evaluate((el) => el.getBoundingClientRect().bottom);
+      for (const l of parts) {
+        const b = (await l.boundingBox())!;
+        expect(b.y, 'не під шапкою').toBeGreaterThanOrEqual(nav - 1);
+        expect(b.y + b.height, 'не за нижнім краєм').toBeLessThanOrEqual(844 + 1);
+      }
+    }).toPass({ timeout: 10_000 });
     expect(jsErrors).toEqual([]);
   });
 

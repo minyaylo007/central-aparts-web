@@ -87,16 +87,7 @@
           <button type="button" class="hsearch-step" id="hs-plus" aria-label="{{ t('more_guests') }}">+</button>
         </div>
       </div>
-      {% if apartments %}
-      <label class="hsearch-field hsearch-apt-field">
-        <span class="hsearch-label">{{ t("apartment_label") }}</span>
-        <select class="hsearch-select" id="hs-apt" data-busy-word="{{ t('busy_short') }}">
-          {% for apt in apartments %}
-          <option value="{{ apt.id }}">{{ apt.name }} · {{ apt.price }} {{ t("uah") }}/{{ t("night") }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      {% endif %}
+      {# 26.11: спершу дати — квартиру не вибирають у пошуку; вільна одна — ведемо на неї, обидві — список #}
       <button type="submit" class="hsearch-submit"><i class="bi bi-search" aria-hidden="true"></i> {{ t("book_now") }}</button>
     </form>
     {# 30.10: на телефоні календар виїзду після заїзду сам не відкривається — кажемо, що далі #}

@@ -69,8 +69,8 @@ def test_home_renders(client):
     assert 'id="availReset"' in html
     assert "Підібрати" not in html           # hero CTA is now "Забронювати"
     assert html.count("hsearch-submit") >= 1
-    assert 'id="hs-apt"' in html             # in-form apartment selector
-    assert html.count('<option value="apt-') == 2  # both public apts, TEST hidden
+    assert 'id="hs-apt"' not in html         # 26.11: спершу дати — вибору квартири в пошуку нема
+    assert html.count('class="btn-clay btn-block-full apt-detail-link"') == 2  # both public apts, TEST hidden
     assert "application/ld+json" in html     # structured data
     assert "TEST" not in html or "1 грн" not in html  # 1-UAH test apt hidden
     assert "&copy; 2025" not in html         # dynamic year, not hardcoded
@@ -105,12 +105,12 @@ def test_home_test_mode_shows_test_apartment(client, monkeypatch):
 
     api_client.set_client(TestableClient())
     html = client.get("/?test=1").get_data(as_text=True)
-    assert 'value="apt-test"' in html        # in the hero selector
-    assert html.count('<option value="') == 3
+    assert 'data-apt="apt-test"' in html     # card of the test apartment (no hero selector since 26.11)
+    assert html.count('class="btn-clay btn-block-full apt-detail-link"') == 3
     # without the param the TEST apartment stays hidden
     html = client.get("/").get_data(as_text=True)
-    assert 'value="apt-test"' not in html
-    assert html.count('<option value="') == 2
+    assert 'data-apt="apt-test"' not in html
+    assert html.count('class="btn-clay btn-block-full apt-detail-link"') == 2
 
 
 def test_availability_api_and_backend_down(client):

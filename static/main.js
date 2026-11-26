@@ -294,7 +294,6 @@
     var elCount = document.getElementById('hs-count');
     var elMinus = document.getElementById('hs-minus');
     var elPlus = document.getElementById('hs-plus');
-    var elApt = document.getElementById('hs-apt'); // in-form apartment choice
     var guests = 2, pickCI = null, pickCO = null;
     // "Забронювати" pressed before dates were picked: guide through both
     // calendars and continue the search automatically once dates are complete
@@ -321,25 +320,6 @@
       else form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     }
 
-    // Warm the booking target EARLY — on check-in pick, while the visitor is
-    // still choosing checkout. Heats the Lambda container and its server-side
-    // caches; by navigation time the same container serves the page fast.
-    // (Warming at checkout-pick raced the auto-submit and cold-started a
-    // second container — the navigation must not overlap the warm fetch.)
-    var warmed = '';
-    function warmTarget() {
-      var ci = iso(pickCI);
-      if (!elApt || !elApt.value || !ci) return;
-      var key = elApt.value + '|' + ci;
-      if (warmed === key) return; // once per selection
-      warmed = key;
-      try {
-        fetch('/apartment/' + encodeURIComponent(elApt.value) +
-              '?check_in=' + encodeURIComponent(ci),
-              { credentials: 'same-origin' }).catch(function () {});
-      } catch (e) { /* warming is best-effort */ }
-    }
-
     if (typeof flatpickr !== 'undefined') {
       pickCI = flatpickr(elCI, {
         minDate: 'today', dateFormat: 'Y-m-d', disableMobile: true, locale: locale,
@@ -351,7 +331,6 @@
             // explicitly started from the book button (intent is clear)
             if (!iso(pickCO) && (window.innerWidth >= 768 || pendingSearch)) pickCO.open();
           }
-          if (d.length) warmTarget(); // heat the target while checkout is being chosen
           updateNextHint();
         },
         onClose: function () { if (!iso(pickCI)) pendingSearch = false; } // dismissed — cancel intent
@@ -374,7 +353,6 @@
       fitOnPhone(pickCI);
       fitOnPhone(pickCO);
     }
-    if (elApt) elApt.addEventListener('change', function () { warmed = ''; warmTarget(); });
 
     // стеля гостей — з сервера (data-max, app.GUESTS_MAX); «+» на ній не мовчить, а пояснює (30.10)
     var hsMax = (elPlus && parseInt(elPlus.parentNode.getAttribute('data-max'), 10)) || 4;
@@ -416,25 +394,6 @@
       if (elAvailReset) elAvailReset.hidden = true;
     }
     if (elAvailReset) elAvailReset.addEventListener('click', clearFilter);
-
-    // mark busy options "— зайнято" + auto-move selection to the first free one
-    function updateAptSelect(known) {
-      if (!elApt) return;
-      var busyWord = elApt.getAttribute('data-busy-word') || '';
-      var statusById = {};
-      known.forEach(function (r) { statusById[r.id] = r.busy; });
-      var firstFree = null;
-      Array.prototype.forEach.call(elApt.options, function (opt) {
-        if (!opt.getAttribute('data-base')) opt.setAttribute('data-base', opt.textContent);
-        var base = opt.getAttribute('data-base');
-        var st = statusById[opt.value]; // true=busy, false=free, undefined=unknown
-        opt.disabled = st === true;
-        opt.textContent = st === true ? base + ' — ' + busyWord : base;
-        if (st === false && firstFree === null) firstFree = opt.value;
-      });
-      var sel = elApt.selectedOptions && elApt.selectedOptions[0];
-      if (sel && sel.disabled && firstFree !== null) elApt.value = firstFree;
-    }
 
     function updateAvailability(ci, co, g) {
       var badges = document.querySelectorAll('[data-apt-avail]');
@@ -509,7 +468,6 @@
         if (epoch !== availEpoch || !elSummary) return null;
         var known = results.filter(Boolean);
         if (!known.length) return null; // every check failed — leave the list untouched
-        updateAptSelect(known);
         var free = known.filter(function (r) { return !r.busy; });
         var busyCards = known.filter(function (r) { return r.busy; });
         var totalCards = badges.length;
@@ -583,24 +541,16 @@
       function goTo(id) {
         window.location.href = '/apartment/' + encodeURIComponent(id) + '?' + qs;
       }
+      // 26.11 (правило власника): спершу дати, квартиру показує сайт. Вільна рівно одна,
+      // а решта точно зайняті — вибирати нічого, одразу на неї. Обидві вільні, жодної,
+      // або статус невідомий (API мовчить) — список; у посиланнях карток уже є дати, тупика нема.
       function done(summary) {
         searching = false;
-        var found = (summary && summary.freeIds && summary.freeIds.length) ? summary.freeIds : (elApt && elApt.value ? [elApt.value] : []);
-        pixel('Search', { content_ids: found, checkin_date: ci, checkout_date: co, num_adults: guests });
+        var free = (summary && summary.freeIds) || [];
+        pixel('Search', { content_ids: free, checkin_date: ci, checkout_date: co, num_adults: guests });
         if (btn) btn.classList.remove('is-loading');
         if (icon) icon.className = 'bi bi-search';
-        var chosen = elApt && elApt.value;
-        if (summary && summary.freeIds) {
-          // selection was auto-moved to a free apartment by updateAptSelect
-          if (chosen && summary.freeIds.indexOf(chosen) !== -1) { goTo(chosen); return; }
-          if (summary.freeIds.length) { goTo(summary.freeIds[0]); return; }
-          // nothing free (or chosen unknown-busy mix) → list + honest note
-        } else if (chosen) {
-          // availability unknown (API hiccup) — never dead-end: the apartment
-          // page itself shows real availability in its calendar
-          goTo(chosen);
-          return;
-        }
+        if (free.length === 1 && summary.busyCount === summary.totalCount - 1) { goTo(free[0]); return; }
         scrollToList();
       }
 

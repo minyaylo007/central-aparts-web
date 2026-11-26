@@ -114,7 +114,8 @@
         <a href="/lang/ua" class="lang-mobile-btn" aria-label="UA — Українська">UA</a>
       {% endif %}
     </div>
-    <a href="{{ url_for('home') }}#apartments" class="btn-book-nav btn-book-nav--bar d-lg-none me-1">{{ t("book_now") }}</a>
+    {# сторінка квартири гасить блок: там уже є віджет і липка панель (аудит 26.11, п.5) #}
+    {% block nav_book_bar %}<a href="{{ url_for('home') }}#apartments" class="btn-book-nav btn-book-nav--bar d-lg-none me-1">{{ t("book_now") }}</a>{% endblock %}
 
     <button class="navbar-toggler border-0 shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu" aria-label="Меню">
       <span class="navbar-toggler-icon"></span>

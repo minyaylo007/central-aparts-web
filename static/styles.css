@@ -1072,8 +1072,6 @@ strong, b { font-weight: 600; color: var(--ink); }
 .widget-price { font-family: var(--font-display); font-size: 2.3rem; font-weight: 600; color: var(--ink); letter-spacing: -0.01em; }
 .widget-price b { color: var(--clay); font-weight: 600; }
 .widget-per-night { font-size: 0.88rem; color: var(--stone); font-weight: 400; }
-.widget-rating { font-size: 0.84rem; color: var(--ink); font-weight: 600; display: flex; align-items: center; gap: 0.3rem; white-space: nowrap; }
-.widget-rating i { color: var(--clay-large); }
 
 /* direct-booking benefit — visible at the entry point, not below the CTA */
 .widget-benefit {
@@ -1910,4 +1908,15 @@ strong, b { font-weight: 600; color: var(--ink); }
   /* 10.11: у віджеті квартири на 360 px плейсхолдер «Оберіть дату» обрізався до «Оберіть дат» */
   .widget-date-half { padding: 0.7rem 0.7rem; }
   .widget-input { font-size: 0.92rem; text-overflow: ellipsis; }
+}
+
+/* Аудит 26.11 (сторінка квартири, короткий шлях до броні) */
+/* п.1: купон і «ще апартаменти» — дрібні посилання під кнопкою броні, не кроки між сумою та іменем */
+.widget-extras { margin-top: .35rem; }
+.widget-extras .coupon-toggle { font-size: .78rem; font-weight: 500; color: var(--stone); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line); }
+.widget-extras .coupon-toggle:hover { color: var(--clay-deep); text-decoration-color: currentColor; }
+.widget-extras .widget-field { margin-bottom: 0; }
+/* п.7: на сенсорних екранах стрілки галереї ловили «злі» кліки — лишаються свайп, точки й лічильник */
+@media (hover: none) and (pointer: coarse) {
+  .apt-gallery .swiper-button-next, .apt-gallery .swiper-button-prev { display: none; }
 }

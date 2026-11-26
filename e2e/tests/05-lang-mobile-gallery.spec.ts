@@ -257,7 +257,7 @@ test.describe('Група 5 · Мова, мобільний, галерея', ()
     expect(jsErrors).toEqual([]);
   });
 
-  test('21г. мобільний: галерея — swiper, листається свайпом і стрілкою, лічильник іде за фото', async ({ page, request, jsErrors }) => {
+  test('21г. мобільний: галерея — swiper, листається свайпом, стрілок на сенсорному екрані нема, лічильник іде за фото', async ({ page, request, jsErrors }) => {
     onlyProject('mobile', 'на десктопі при ≥5 фото замість swiper колаж (22)');
     const id = await apartmentWithPhotos(request, 2);
     test.skip(!id, 'live: у каталозі нема квартири з ≥2 фото — гортати нічого');
@@ -280,11 +280,13 @@ test.describe('Група 5 · Мова, мобільний, галерея', ()
     await expectSlide(1);
     await swipe(page, hero, 0.7);
     await expectSlide(0);
-    // стрілки; loop: з першого назад — на останнє
-    await hero.locator('.swiper-button-prev').click();
+    // loop: з першого назад — на останнє
+    await swipe(page, hero, 0.7);
     await expectSlide(n - 1);
-    await hero.locator('.swiper-button-next').click();
-    await expectSlide(0);
+    // аудит 26.11, п.7: стрілки на сенсорному екрані ловили «злі» кліки — сховані, свайп і лічильник лишились
+    await expect(hero.locator('.swiper-button-prev')).toBeHidden();
+    await expect(hero.locator('.swiper-button-next')).toBeHidden();
+    await expect(page.locator('#galleryCount')).toBeVisible();
 
     expect(jsErrors).toEqual([]);
   });
@@ -594,29 +596,85 @@ test.describe('Група 5 · Мова, мобільний, галерея', ()
 
   // 24а–в: календар квартири з зайнятими днями (розбір 30.10, задача 16).
   // Зайнятість — з /api/availability (у fake квартира A: +10…+13), не з чисел у тесті.
-  test('24а. квартира, телефон: після заїзду — підказка «оберіть виїзд» і підсвічене поле виїзду', async ({ page, jsErrors }) => {
-    onlyProject('mobile', 'на компʼютері календар виїзду відкривається сам');
+  test('24а. квартира, телефон: після заїзду календар виїзду відкривається сам, сторінка не зсувається', async ({ page, jsErrors }) => {
+    onlyProject('mobile', 'аудит 26.11, п.2: на компʼютері так було й раніше');
     await page.goto(`/apartment/${APT_A}`);
     const ci = page.locator('#picker-checkin');
     const co = page.locator('#picker-checkout');
     const hint = page.locator('#widget-next-hint');
     const coField = page.locator('.widget-date-half', { has: co });
+    const bar = page.locator('#stickyBookBar');
     await expect(hint).toBeHidden();
 
     const stay = freeStay(await availability(page.request, APT_A), 2, addDays(today(), 2))!;
     await calendarFor(page, ci);
+    const scrollY = () => page.evaluate(() => window.scrollY);
+    // точка відліку — сам вибір заїзду: Playwright перед тапом може докрутити день до екрана, це не стрибок.
+    // Лише читаємо: перший обробник onChange запамʼятовує scrollY до того, як сайт відкриє виїзд
+    await ci.evaluate((el) => {
+      (el as any)._flatpickr.config.onChange.unshift(() => { (window as any).__ciPickY = window.scrollY; });
+    });
     await (await heroDay(page, ci, stay.ci)).tap();
+    const before = await page.evaluate(() => (window as any).__ciPickY as number);
     await expect(page.locator('#f-check-in')).toHaveValue(stay.ci);
-    await expect(page.locator('.flatpickr-calendar.open'), 'на телефоні виїзд сам не відкривається').toHaveCount(0);
+    await expect.poll(() => co.evaluate((el) => !!(el as any)._flatpickr?.isOpen), 'виїзд не відкрився сам').toBe(true);
+    await expect(page.locator('.flatpickr-calendar.open')).toHaveCount(1);
+    await expect(page.locator('.flatpickr-calendar.open'), 'календар виїзду на екрані').toBeInViewport();
+    await page.waitForTimeout(300);
+    expect(Math.abs((await scrollY()) - before), 'сторінка зсунулась, коли відкрився виїзд').toBeLessThan(2);
+    await expect(bar, 'поки відкритий виїзд, липка панель не заважає').toHaveClass(/\bkbd\b/);
     await expect(hint).toBeVisible();
     await expect(hint).toHaveText(exactText(tr('hero_pick_checkout')));
     await expect(coField).toHaveClass(/\bis-next\b/);
 
-    await calendarFor(page, co);
+    // третій тап — виїзд, без тапу по полю
     await (await heroDay(page, co, stay.co)).tap();
     await expect(page.locator('#f-check-out')).toHaveValue(stay.co);
+    await expect(page.locator('.flatpickr-calendar.open')).toHaveCount(0);
+    await expect(bar).not.toHaveClass(/\bkbd\b/);
     await expect(hint).toBeHidden();
     await expect(coField).not.toHaveClass(/\bis-next\b/);
+    expect(jsErrors).toEqual([]);
+  });
+
+  test('24г. квартира, телефон 390×844: після ціни «Разом», імʼя, телефон і кнопка — в одному екрані; кнопки шапки нема', async ({ page, jsErrors }) => {
+    onlyProject('mobile', 'аудит 26.11, п.1 і п.5 — про екран телефона');
+    await page.goto(`/apartment/${APT_A}`);
+    await expect(page.locator('.btn-book-nav--bar'), 'на квартирі одна кнопка брони — липка панель').toHaveCount(0);
+    // рейтинг і «Пряме спілкування» над датами — по одному разу (п.3)
+    await expect(page.locator('#booking-widget')).not.toContainText('9,6');
+    await expect(page.locator('.apt-detail-head')).not.toContainText(tr('perk_direct_host'));
+
+    const stay = freeStay(await availability(page.request, APT_A), 2, addDays(today(), 2))!;
+    const pending = waitQuote(page, APT_A, stay, 2);
+    await pickStay(page, stay);
+    expect((await pending).status()).toBe(200);
+    const total = page.locator('#price-breakdown .pb-total');
+    const parts = [total, page.locator('#w-name'), page.locator('#w-phone'), page.locator('#btn-book')];
+    await expect(page.locator('#btn-book')).toBeEnabled();
+    // порядок: сума → імʼя → телефон → кнопка → купон (посилання під кнопкою)
+    await expect(async () => {
+      const boxes = await Promise.all([...parts, page.locator('#coupon-toggle')].map(async (l) => (await l.boundingBox())!));
+      for (let i = 1; i < boxes.length; i++) expect(boxes[i].y, `крок ${i} нижче попереднього`).toBeGreaterThan(boxes[i - 1].y);
+      const nav = await page.locator('#siteNav').evaluate((el) => el.getBoundingClientRect().height);
+      const span = boxes[3].y + boxes[3].height - boxes[0].y;
+      expect(span, 'від «Разом» до низу кнопки — не більше екрана без шапки').toBeLessThanOrEqual(844 - nav);
+    }).toPass({ timeout: 5_000 });
+    // і справді разом на екрані: «Разом» під шапкою → решта видна без прокрутки.
+    // Прокрутка й замір — одним кроком з повтором: у CI верстка над віджетом ще доїжджала після scrollTo
+    await expect(async () => {
+      await total.evaluate((el) => {
+        const nav = document.getElementById('siteNav')!.getBoundingClientRect().height;
+        window.scrollTo({ top: window.scrollY + el.getBoundingClientRect().top - nav - 8, behavior: 'instant' as ScrollBehavior });
+      });
+      await page.waitForTimeout(150);
+      const nav = await page.locator('#siteNav').evaluate((el) => el.getBoundingClientRect().bottom);
+      for (const l of parts) {
+        const b = (await l.boundingBox())!;
+        expect(b.y, 'не під шапкою').toBeGreaterThanOrEqual(nav - 1);
+        expect(b.y + b.height, 'не за нижнім краєм').toBeLessThanOrEqual(844 + 1);
+      }
+    }).toPass({ timeout: 10_000 });
     expect(jsErrors).toEqual([]);
   });
 

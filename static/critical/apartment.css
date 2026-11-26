@@ -1,4 +1,4 @@
-/* critical/apartment: перший екран (apartment, apartment-dates, apartment-flash) з bootstrap-lite.css + flatpickr + styles.css (sources 5a278b2f757a45eb). Згенеровано scripts/build_css.sh — руками не правити. */
+/* critical/apartment: перший екран (apartment, apartment-dates, apartment-flash) з bootstrap-lite.css + flatpickr + styles.css (sources 3ee403fb20d140fd). Згенеровано scripts/build_css.sh — руками не правити. */
 :root,[data-bs-theme=light]{--bs-success-text-emphasis:#0a3622;--bs-danger-text-emphasis:#58151c;--bs-success-bg-subtle:#d1e7dd;--bs-danger-bg-subtle:#f8d7da;--bs-success-border-subtle:#a3cfbb;--bs-danger-border-subtle:#f1aeb5;--bs-font-sans-serif:system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";--bs-font-monospace:SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;--bs-body-font-family:var(--bs-font-sans-serif);--bs-body-font-size:1rem;--bs-body-font-weight:400;--bs-body-line-height:1.5;--bs-body-color:#212529;--bs-body-bg:#fff;--bs-emphasis-color-rgb:0, 0, 0;--bs-secondary-color:rgba(33, 37, 41, 0.75);--bs-heading-color:inherit;--bs-link-color-rgb:13, 110, 253;--bs-link-hover-color-rgb:10, 88, 202;--bs-code-color:#d63384;--bs-highlight-color:#212529;--bs-highlight-bg:#fff3cd;--bs-border-width:1px;--bs-border-radius:0.375rem;--bs-border-radius-sm:0.25rem}
 *,*::before,*::after{box-sizing: border-box;}
 @media (prefers-reduced-motion: no-preference){:root{scroll-behavior:smooth}}
@@ -20,6 +20,7 @@ button{border-radius: 0;}
 button:focus:not(:focus-visible){outline: 0;}
 input,button,select,optgroup,textarea{margin: 0;font-family: inherit;font-size: inherit;line-height: inherit;}
 button,select{text-transform: none;}
+[role=button]{cursor: pointer;}
 button,[type=button],[type=reset],[type=submit]{-webkit-appearance: button;}
 button:not(:disabled),[type=button]:not(:disabled),[type=reset]:not(:disabled),[type=submit]:not(:disabled){cursor: pointer;}
 ::-moz-focus-inner{padding: 0;border-style: none;}
@@ -158,6 +159,8 @@ strong, b{font-weight: 600;color: var(--ink);}
 .apt-gallery-count:hover{background: rgba(34,30,27,0.8);}
 .apt-gallery .swiper-button-next, .apt-gallery .swiper-button-prev{color: #fff;width: 48px;height: 48px;background: rgba(34,30,27,0.38);border-radius: var(--r-round);backdrop-filter: blur(4px);transition: background var(--t-fast) var(--ease-out);}
 .apt-gallery .swiper-button-next:hover, .apt-gallery .swiper-button-prev:hover{background: rgba(34,30,27,0.7);}
+.apt-gallery .swiper-pagination-bullet{background: #fff;opacity: 0.5;width: 8px;height: 8px;}
+.apt-gallery .swiper-pagination-bullet-active{opacity: 1;background: var(--oak);width: 22px;border-radius: 4px;}
 .apt-collage{display: none;}
 .apt-collage-count{display: none;}
 @media (min-width: 992px){.apt-gallery.has-collage .apt-hero-swiper{display: none;}
@@ -274,6 +277,12 @@ strong, b{font-weight: 600;color: var(--ink);}
 .swiper-wrapper{display: flex;position: relative;width: 100%;height: 100%;box-sizing: content-box;}
 .swiper-slide{flex-shrink: 0;width: 100%;height: 100%;position: relative;}
 .swiper-pagination{position: absolute;left: 0;right: 0;bottom: 10px;z-index: 2;display: flex;justify-content: center;gap: 2px;}
+.swiper-pagination-bullet, .apt-gallery .swiper-pagination-bullet{width: 24px;height: 24px;margin: 0 !important;border-radius: var(--r-pill);background: transparent;opacity: 1;position: relative;cursor: pointer;}
+.swiper-pagination-bullet::before{content: '';position: absolute;left: 50%;top: 50%;width: 7px;height: 7px;transform: translate(-50%, -50%);border-radius: var(--r-pill);background: var(--porcelain);opacity: .6;box-shadow: var(--shadow-whisper);transition: width var(--t-fast) var(--ease-out), opacity var(--t-fast) var(--ease-out);}
+.swiper-pagination-bullet-active, .apt-gallery .swiper-pagination-bullet-active{background: transparent;width: 24px;}
+.swiper-pagination-bullet-active::before{width: 20px;opacity: 1;background: var(--surface);}
+.apt-gallery .swiper-button-next svg, .apt-gallery .swiper-button-prev svg{width: auto;height: 1.1rem;fill: currentColor;}
+.apt-gallery .swiper-button-prev .swiper-navigation-icon{transform: rotate(180deg);}
 .site-nav.nav-solid{background: var(--porcelain);}
 .btn-book-nav{border-radius: var(--r-pill);}
 .btn-book-nav--bar{min-height: 40px;padding: 0.45rem 1rem;font-size: 0.78rem;letter-spacing: 0.02em;}

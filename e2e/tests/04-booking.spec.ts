@@ -387,7 +387,7 @@ test.describe('Група 4 · Бронювання до Монобанку', { 
     // редизайн 21.10: гостю — «22 жовтня 2026», машинна дата — у <time datetime>
     await expect(details.locator(`time[datetime="${stay.ci}"]`)).toHaveCount(1);
     await expect(details.locator(`time[datetime="${stay.co}"]`)).toHaveCount(1);
-    await expect(details).toContainText(String(booking.total));
+    await expect(details).toContainText(`${booking.total.toLocaleString('uk-UA')} ${tr('uah')}`); // як у віджеті: «4 548 грн»
 
     const cont = page.getByRole('link', { name: tr('continue_to_docs') });
     await expect(cont).toBeVisible();

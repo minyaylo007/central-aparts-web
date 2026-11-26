@@ -130,7 +130,7 @@ test.describe('Група 6 · Кілька апартаментів одніє�
     await expect(items).toHaveCount(2);
     await expect(items.nth(0)).toContainText(`Апартаменти A (смока) · 2 ${tr('group_guests_short')}`);
     await expect(items.nth(1)).toContainText(`${NAME_B} · 3 ${tr('group_guests_short')}`);
-    await expect(page.locator('.confirmed-details')).toContainText(String(q23.total));
+    await expect(page.locator('.confirmed-details')).toContainText(q23.total.toLocaleString('uk-UA'));
 
     expect(jsErrors).toEqual([]);
   });

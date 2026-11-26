@@ -271,7 +271,7 @@
 
 
 <!-- ============================================================
-     REVIEWS + TRUST — оцінка Booking і чому безпечно бронювати напряму
+     REVIEWS — оцінка Booking (сітку «чому безпечно» прибрано, аудит 26.11, п.6)
      ============================================================ -->
 <section class="section section--porcelain" id="reviews">
   <div class="container">
@@ -286,29 +286,6 @@
       <div>
         <h2 class="section-title">{{ t("reviews_title") }}</h2>
         <p class="section-subtitle">{{ t("reviews_subtitle") }}</p>
-      </div>
-    </div>
-
-    <div class="trust-grid">
-      <div class="trust-item reveal">
-        <span class="trust-icon"><i class="bi bi-shield-lock" aria-hidden="true"></i></span>
-        <h3 class="trust-item-title">{{ t("trust_1_title") }}</h3>
-        <p class="trust-item-desc">{{ t("trust_1_desc") }}</p>
-      </div>
-      <div class="trust-item reveal" style="--d:90ms">
-        <span class="trust-icon"><i class="bi bi-patch-check" aria-hidden="true"></i></span>
-        <h3 class="trust-item-title">{{ t("trust_2_title") }}</h3>
-        <p class="trust-item-desc">{{ t("trust_2_desc") }}</p>
-      </div>
-      <div class="trust-item reveal" style="--d:180ms">
-        <span class="trust-icon"><i class="bi bi-headset" aria-hidden="true"></i></span>
-        <h3 class="trust-item-title">{{ t("trust_3_title") }}</h3>
-        <p class="trust-item-desc">{{ t("trust_3_desc") }}</p>
-      </div>
-      <div class="trust-item reveal" style="--d:270ms">
-        <span class="trust-icon"><i class="bi bi-tag" aria-hidden="true"></i></span>
-        <h3 class="trust-item-title">{{ t("trust_4_title") }}</h3>
-        <p class="trust-item-desc">{{ t("trust_4_desc") }}</p>
       </div>
     </div>
   </div>
@@ -410,40 +387,6 @@
         </div>
         {% endfor %}
       </div>
-    </div>
-  </div>
-</section>
-
-
-<!-- ============================================================
-     CONTACT CTA + PARTNER
-     ============================================================ -->
-<section class="section section--cream section--tight" id="contact-cta">
-  <div class="container">
-    <div class="contact-layout reveal">
-      <div>
-        <h2 class="section-title">{{ t("contact_title") }}</h2>
-        <p class="section-subtitle">{{ t("contact_desc") }}</p>
-      </div>
-      <div class="contact-buttons">
-        <a href="https://t.me/minyaylo" target="_blank" rel="noopener" class="btn-channel btn-channel--tg">
-          <i class="bi bi-telegram" aria-hidden="true"></i> {{ t("contact_telegram") }}
-        </a>
-        <a href="tel:+380502648312" class="btn-channel btn-channel--phone">
-          <i class="bi bi-telephone" aria-hidden="true"></i> {{ t("contact_phone_cta") }}
-        </a>
-        <a href="https://instagram.com/Central_Square_CV" target="_blank" rel="noopener" class="btn-channel btn-channel--ig">
-          <i class="bi bi-instagram" aria-hidden="true"></i> @Central_Square_CV
-        </a>
-      </div>
-    </div>
-
-    <div class="partner-strip reveal">
-      <div>
-        <h2 class="partner-title">{{ t("partner_title") }}</h2>
-        <p class="partner-text">{{ t("partner_text") }}</p>
-      </div>
-      <a href="https://t.me/minyaylo" target="_blank" rel="noopener" class="btn-outline">{{ t("partner_cta") }}</a>
     </div>
   </div>
 </section>

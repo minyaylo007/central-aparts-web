@@ -747,10 +747,12 @@ def book_group():
 
 @app.route("/booking-confirmed")
 def booking_confirmed():
+    """Підтвердження — лише для броні, яку бек-офіс знайшов за ref. Нема ref, невідомий ref
+    або бек-офіс не відповів — нейтральний текст і контакт: «підтверджено» не обіцяємо
+    (аудит 26.11, п.4)."""
     lang = session.get("lang", DEFAULT_LANG)
     booking_id = request.args.get("ref", "")
     booking = None
-    other_apt = None
     group_rooms = []
     if booking_id:
         try:
@@ -758,25 +760,16 @@ def booking_confirmed():
         except Exception:
             pass
     group = (booking or {}).get("group") or {}
-    taken = {str((booking or {}).get("apartment_id") or "")}
     if group.get("items"):
         # спека 108: перелік усіх кімнат однієї оплати. Назва — з каталогу за
         # apartment_id; нема в каталозі (тестова, збій) — код квартири, не id
         names = {str(a.get("id")): a.get("name") for a in _catalog(lang)}
         for item in group["items"]:
             apt_id = str(item.get("apartment_id") or "")
-            taken.add(apt_id)
             group_rooms.append({"name": names.get(apt_id) or item.get("apartment") or "—",
                                 "guests": item.get("guests")})
-    if booking and booking.get("apartment_id"):
-        try:
-            others = [a for a in _public_apartments(get_client().list_apartments(lang=lang))
-                      if str(a.get("id")) not in taken]
-            other_apt = others[0] if others else None
-        except Exception:
-            other_apt = None
     return render_template("public_confirmed.html", booking=booking,
-                           booking_id=booking_id, other_apt=other_apt,
+                           booking_id=booking_id,
                            group_rooms=group_rooms, group_total=group.get("total"))
 
 

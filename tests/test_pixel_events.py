@@ -38,4 +38,4 @@ def test_main_js_events_carry_content_ids():
     assert "fbq('track'" not in js.replace("fbq('track', ev,", "")   # усе — через pixel()
     ic = re.findall(r"pixel\('InitiateCheckout', \{ content_ids: \[String\(APT_ID\)\]", js)
     assert len(ic) == 2                                           # і з ціною сервера, і без неї
-    assert "pixel('Search', { content_ids: found" in js
+    assert "pixel('Search', { content_ids: free" in js

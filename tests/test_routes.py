@@ -4,6 +4,8 @@ All backoffice calls are handled by MockBackofficeClient (no real HTTP).
 13.10.2026: один тест на гілку поведінки — 34 → 17, жодна гілка не втрачена.
 """
 
+import re
+
 import pytest
 
 # critical: головна, квартира, бронь до Монобанку, підтвердження, мова
@@ -23,7 +25,8 @@ class TestHomePage:
         assert "Central Square".encode() in r.data
         assert "Апартаменти A".encode() in r.data
         assert "Апартаменти B".encode() in r.data
-        assert b"1490" in r.data and b"1850" in r.data
+        digits = re.sub(r"\D", "", " ".join(re.findall(r'class="price-value">([^<]*)<', r.get_data(as_text=True))))
+        assert "1490" in digits and "1850" in digits
 
     def test_home_empty_apartments(self, client, mock_client):
         mock_client.apartments = []

@@ -12,6 +12,8 @@
 
 {# шапка суцільна: на світлому фото прозора губила логотип (аудит 21.10, п.10) #}
 {% block nav_class %}nav-solid{% endblock %}
+{# одна кнопка брони на телефоні — липка панель; кнопка шапки тут лише дублювала її (аудит 26.11, п.5) #}
+{% block nav_book_bar %}{% endblock %}
 
 {% block head_extra %}
 <script>
@@ -146,15 +148,14 @@
 
 <div class="container apt-detail-layout">
   {# заголовок над колонками: на телефоні одразу під ним — віджет дат (аудит 21.10, п.1);
-     ціна лише у віджеті й липкій панелі, без дубля під заголовком (п.9) #}
+     ціна лише у віджеті й липкій панелі, без дубля під заголовком (п.9).
+     Рейтинг — лише тут, «Пряме спілкування» — лише під формою (аудит 26.11, п.3: дати в перший екран) #}
   <header class="apt-detail-head">
     <h1 class="apt-detail-name">{{ apt.name }}</h1>
     <div class="apt-detail-meta">
       <span><i class="bi bi-star-fill apt-detail-star" aria-hidden="true"></i> 9,6 · Booking.com</span>
       <span class="dot-sep"></span>
       <span><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ t("city_center") }}</span>
-      <span class="dot-sep"></span>
-      <span><i class="bi bi-check2" aria-hidden="true"></i> {{ t("perk_direct_host") }}</span>
     </div>
   </header>
 
@@ -212,7 +213,6 @@
             <span class="widget-price"><b>{{ apt.price }}</b></span>
             <span class="widget-per-night">{{ t("uah") }} / {{ t("per_night") }}</span>
           </div>
-          <span class="widget-rating"><i class="bi bi-star-fill"></i> 9,6</span>
         </div>
 
         <div class="widget-benefit"><i class="bi bi-patch-check-fill" aria-hidden="true"></i> {{ t("widget_direct_benefit") }}</div>
@@ -306,7 +306,28 @@
             </div>
           </div>
 
-          <!-- Returning-guest coupon: under the price (C6) so its reveal never pushes the numbers the guest is reading -->
+          <!-- Stage 2: guest details + book (height-animated reveal after dates valid) -->
+          <div class="widget-stage-2">
+            <div class="widget-stage-2-inner">
+              <div class="widget-field">
+                <label class="widget-label" for="w-name">{{ t("your_name") }}</label>
+                <input type="text" name="name" id="w-name" class="text-input" placeholder="{{ t('name_placeholder') }}" required autocomplete="name">
+              </div>
+              <div class="widget-field">
+                <label class="widget-label" for="w-phone">{{ t("your_phone") }}</label>
+                <input type="tel" name="phone" id="w-phone" class="text-input" placeholder="{{ t('phone_placeholder') }}" required inputmode="tel" autocomplete="tel">
+              </div>
+              <button type="submit" class="btn-book" id="btn-book" disabled>
+                <i class="bi bi-lock-fill" aria-hidden="true"></i> <span id="btn-book-txt">{{ t("proceed_to_payment") }}</span>
+              </button>
+              <div class="btn-book-sub">{{ t("book_subline") }}</div>
+            </div>
+          </div>
+
+          <!-- Аудит 26.11, п.1: імʼя, телефон і кнопка — одразу під «Разом»; купон і «ще апартаменти» — дрібними
+               посиланнями під кнопкою (логіка та сама). Купон відкривається вниз і не зсуває ні суму, ні форму. -->
+          <div class="widget-extras">
+          <!-- Returning-guest coupon -->
           <div class="widget-field coupon-field coupon-field--priced">
             <div class="coupon-field-inner">
               <button type="button" class="coupon-toggle" id="coupon-toggle" aria-expanded="false" aria-controls="coupon-body">
@@ -369,27 +390,10 @@
             <div id="group-inputs"></div>
           </div>
           {% endif %}
+          </div>
           <!-- Idempotency-Key of this booking attempt: main.js writes a NEW UUID on every
                submit; empty (no JS) — the site server makes its own -->
           <input type="hidden" name="idempotency_key" id="f-idempotency-key" value="">
-
-          <!-- Stage 2: guest details + book (height-animated reveal after dates valid) -->
-          <div class="widget-stage-2">
-            <div class="widget-stage-2-inner">
-              <div class="widget-field">
-                <label class="widget-label" for="w-name">{{ t("your_name") }}</label>
-                <input type="text" name="name" id="w-name" class="text-input" placeholder="{{ t('name_placeholder') }}" required autocomplete="name">
-              </div>
-              <div class="widget-field">
-                <label class="widget-label" for="w-phone">{{ t("your_phone") }}</label>
-                <input type="tel" name="phone" id="w-phone" class="text-input" placeholder="{{ t('phone_placeholder') }}" required inputmode="tel" autocomplete="tel">
-              </div>
-              <button type="submit" class="btn-book" id="btn-book" disabled>
-                <i class="bi bi-lock-fill" aria-hidden="true"></i> <span id="btn-book-txt">{{ t("proceed_to_payment") }}</span>
-              </button>
-              <div class="btn-book-sub">{{ t("book_subline") }}</div>
-            </div>
-          </div>
 
           <p class="widget-hint" id="widget-hint"><span>{{ t("select_dates_first") }}</span></p>
         </form>

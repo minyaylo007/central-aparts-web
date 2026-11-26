@@ -609,12 +609,15 @@ test.describe('Група 5 · Мова, мобільний, галерея', ()
     const stay = freeStay(await availability(page.request, APT_A), 2, addDays(today(), 2))!;
     await calendarFor(page, ci);
     const scrollY = () => page.evaluate(() => window.scrollY);
-    // точка відліку — сам вибір заїзду: Playwright перед тапом може докрутити день до екрана, це не стрибок.
-    // Лише читаємо: перший обробник onChange запамʼятовує scrollY до того, як сайт відкриє виїзд
+    // точка відліку — сам вибір заїзду. Лише читаємо: перший обробник onChange запамʼятовує scrollY до того, як сайт відкриє виїзд
     await ci.evaluate((el) => {
       (el as any)._flatpickr.config.onChange.unshift(() => { (window as any).__ciPickY = window.scrollY; });
     });
-    await (await heroDay(page, ci, stay.ci)).tap();
+    // scroll: 'none' — палець гостя тисне те, що вже на екрані, і сторінку не крутить. Без цього під навантаженням
+    // (розбір 24а, 26.11): поки календар заїзду «не stable» (анімація відкриття), Playwright повторює tap і на
+    // 4-й спробі сам робить scrollIntoView({block:'start'}) видимої клітинки; html { scroll-behavior: smooth }
+    // розтягує це вже після тапу — у trace −548 px без жодного виклику прокрутки зі сторінки. Це не стрибок сайту
+    await (await heroDay(page, ci, stay.ci)).tap({ scroll: 'none' });
     const before = await page.evaluate(() => (window as any).__ciPickY as number);
     await expect(page.locator('#f-check-in')).toHaveValue(stay.ci);
     await expect.poll(() => co.evaluate((el) => !!(el as any)._flatpickr?.isOpen), 'виїзд не відкрився сам').toBe(true);

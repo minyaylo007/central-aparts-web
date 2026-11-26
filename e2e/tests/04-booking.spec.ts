@@ -67,7 +67,6 @@ test.describe('Група 4 · Бронювання до Монобанку', { 
       await page.goto(url);
       return {
         cards: await page.locator('a[data-apt]').evaluateAll((els) => els.map((e) => e.getAttribute('data-apt')!)),
-        options: await page.locator('#hs-apt option').evaluateAll((els) => els.map((e) => (e as HTMLOptionElement).value)),
         prices: await page.locator('.apt-row .price-value').allTextContents(),
       };
     };
@@ -78,7 +77,7 @@ test.describe('Група 4 · Бронювання до Монобанку', { 
     expect(plain.cards.length).toBeGreaterThan(0);
     for (const p of plain.prices) expect(digits(p), `/: ціна «${p}»`).toBeGreaterThan(1);
 
-    // ?test=1 — ті самі квартири + тестові наприкінці, і в картках, і в селекторі hero-пошуку
+    // ?test=1 — ті самі квартири + тестові наприкінці (вибору квартири в hero-пошуку нема з 26.11)
     const extra = withTest.cards.filter((id) => !plain.cards.includes(id));
     // live: тестова квартира живе лише в бек-офісі (Config.TEST_APARTMENT_IDS); її там може не бути
     // (22.10.2026 — 404) — заводити не наше, тож без неї перевіряти нічого. У fake вона є завжди.
@@ -87,8 +86,6 @@ test.describe('Група 4 · Бронювання до Монобанку', { 
     expect(extra.length, '/?test=1 не додав тестової квартири').toBeGreaterThan(0);
     expect(withTest.cards.slice(0, plain.cards.length)).toEqual(plain.cards);
     for (const id of extra) {
-      expect(withTest.options, `#hs-apt: ${id}`).toContain(id);
-      expect(plain.options, `#hs-apt на / містить тестову ${id}`).not.toContain(id);
       const row = page.locator('.apt-row').filter({ has: page.locator(`a[data-apt="${id}"]`) });
       expect(digits(await row.locator('.price-value').textContent()), `${id}: ціна тестової`).toBe(1);
     }

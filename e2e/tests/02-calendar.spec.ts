@@ -18,7 +18,7 @@ import { test, expect } from './fixtures';
 import { IS_LIVE } from '../smoke-env';
 import {
   APT_A, APT_B, addDays, availability, calendarFor, dayCell, digits, expectServerQuote, freeStay,
-  nightBlocked, note, pickCheckIn, pickCheckOut, pickStay, today, uah, UK_MONTHS, waitQuote, weekday,
+  nightBlocked, note, pickCheckIn, pickCheckOut, pickStay, stayBlocked, today, uah, UK_MONTHS, waitQuote, weekday,
   type Quote, type Range, type Stay,
 } from './helpers';
 
@@ -331,16 +331,16 @@ test.describe('Група 2 · Календар і котирування', { ta
     expect(jsErrors).toEqual([]);
   });
 
-  test('головна: hero-пошук за датами — бейджі вільна/зайнята за /api/availability', async ({ page, request, jsErrors }) => {
+  // 26.11 (правило власника): у пошуку лише дати й гості — квартиру показує сайт.
+  // Одна гілка поведінки — один тест: обидві вільні / вільна одна / жодної / API мовчить.
+  test.describe('головна: спершу дати, потім квартира', () => {
     test.skip(IS_LIVE, 'live: потрібен перетин зайнятостей A і B — є лише в даних підміни');
-    const [a, b] = [(await availability(request, APT_A))[0], (await availability(request, APT_B))[0]];
-    const row = (id: string) => page.locator('.apt-row').filter({ has: page.locator(`a[data-apt="${id}"]`) });
-    const badge = (id: string) => row(id).locator('[data-apt-avail]');
-    const form = page.locator('#heroSearch');
-    const pickHero = async (sel: string, iso: string) => {
+    const row = (page: Page, id: string) => page.locator('.apt-row').filter({ has: page.locator(`a[data-apt="${id}"]`) });
+    const badge = (page: Page, id: string) => row(page, id).locator('[data-apt-avail]');
+    async function pickHero(page: Page, sel: string, iso: string) {
       const input = page.locator(sel);
       await (await dayCell(input, await calendarFor(page, input), iso)).click();
-      // 22.10: у полі — «пт, 23 жовт.», як у віджеті квартири; ISO живе в календарі (і йде в URL нижче)
+      // 22.10: у полі — «пт, 23 жовт.», як у віджеті квартири; ISO живе в календарі (і йде в URL)
       await expect.poll(() => input.evaluate((el) => {
         const d = (el as any)._flatpickr.selectedDates[0];
         return d && [d.getFullYear(), d.getMonth() + 1, d.getDate()].map((n) => String(n).padStart(2, '0')).join('-');
@@ -350,36 +350,70 @@ test.describe('Група 2 · Календар і котирування', { ta
         .toLocaleDateString('uk-UA', { weekday: 'short', day: 'numeric', month: 'short' }), [y, m, d]);
       expect(human).toMatch(/^\p{L}+, \d{1,2} \p{L}+\.?$/u);
       await expect(input).toHaveValue(human);
-    };
-
-    // стоянка, що зачіпає зайняте в ОБОХ → обидва бейджі «зайнята», чесна примітка, лишаємось на головній
-    const both: Stay = { ci: a.from < b.from ? a.from : b.from, co: a.to > b.to ? a.to : b.to };
-    await page.goto('/');
-    await pickHero('#hs-checkin', both.ci);
-    await pickHero('#hs-checkout', both.co);
-    await form.locator('.hsearch-submit').click();
-    for (const id of [APT_A, APT_B]) {
-      await expect(badge(id)).toBeVisible();
-      await expect(badge(id)).toHaveClass(/is-busy/);
-      await expect(badge(id).locator('.apt-avail-text')).toHaveText((await badge(id).getAttribute('data-busy'))!);
-      // toBeDisabled() на <option> не спрацьовує — дивимось властивість і позначку «— зайнято»
-      const option = page.locator(`#hs-apt option[value="${id}"]`);
-      await expect(option).toHaveJSProperty('disabled', true);
-      await expect(option).toHaveText(new RegExp(`— ${await page.locator('#hs-apt').getAttribute('data-busy-word')}$`));
     }
-    await expect(page.locator('#availSummaryNone')).toBeVisible();
-    expect(new URL(page.url()).pathname).toBe('/');
+    async function search(page: Page, stay: Stay) {
+      await page.goto('/');
+      // у формі — лише заїзд, виїзд, гості й одна кнопка; вибору квартири нема
+      await expect(page.locator('#heroSearch select')).toHaveCount(0);
+      await pickHero(page, '#hs-checkin', stay.ci);
+      await pickHero(page, '#hs-checkout', stay.co);
+      await page.locator('#heroSearch .hsearch-submit').click();
+    }
+    async function expectListWithDates(page: Page, stay: Stay, ids: string[]) {
+      expect(new URL(page.url()).pathname).toBe('/');
+      for (const id of ids) {
+        await expect(row(page, id)).toBeVisible();
+        const href = await row(page, id).locator('a.apt-detail-link').getAttribute('href');
+        const q = new URL(href!, page.url()).searchParams;
+        expect([q.get('check_in'), q.get('check_out'), q.get('guests')], `${id}: дати в посиланні`).toEqual([stay.ci, stay.co, '2']);
+      }
+    }
 
-    // зайнята лише A → пошук веде на вільну B з датами в адресі
-    const onlyA: Stay = { ci: a.from, co: addDays(a.from, 1) };
-    await page.goto('/');
-    await pickHero('#hs-checkin', onlyA.ci);
-    await pickHero('#hs-checkout', onlyA.co);
-    await form.locator('.hsearch-submit').click();
-    await page.waitForURL((u) => u.pathname === `/apartment/${APT_B}`);
-    const params = new URL(page.url()).searchParams;
-    expect([params.get('check_in'), params.get('check_out'), params.get('guests')]).toEqual([onlyA.ci, onlyA.co, '2']);
+    test('вільні обидві → список з обома картками, гість вибирає', async ({ page, request, jsErrors }) => {
+      const ranges = [...await availability(request, APT_A), ...await availability(request, APT_B)];
+      const stay = freeStay(ranges, 1);
+      expect(stay, 'у підміні є ніч, вільна в обох').not.toBeNull();
+      await search(page, stay!);
+      for (const id of [APT_A, APT_B]) await expect(badge(page, id)).toHaveClass(/is-free/);
+      await expect(page.locator('#availSummaryFree')).toBeVisible();
+      await expectListWithDates(page, stay!, [APT_A, APT_B]);
+      expect(jsErrors).toEqual([]);
+    });
 
-    expect(jsErrors).toEqual([]);
+    test('вільна одна → одразу на її сторінку з датами й ?book=1', async ({ page, request, jsErrors }) => {
+      const a = (await availability(request, APT_A))[0];
+      const onlyA: Stay = { ci: a.from, co: addDays(a.from, 1) };
+      expect(stayBlocked(await availability(request, APT_B), onlyA), 'B вільна в ніч зайнятості A').toBe(false);
+      await search(page, onlyA);
+      await page.waitForURL((u) => u.pathname === `/apartment/${APT_B}`);
+      const params = new URL(page.url()).searchParams;
+      expect([params.get('check_in'), params.get('check_out'), params.get('guests'), params.get('book')])
+        .toEqual([onlyA.ci, onlyA.co, '2', '1']);
+      expect(jsErrors).toEqual([]);
+    });
+
+    test('жодної → список, чесна строка «зайнято» і контакт', async ({ page, request, jsErrors }) => {
+      const [a, b] = [(await availability(request, APT_A))[0], (await availability(request, APT_B))[0]];
+      const both: Stay = { ci: a.from < b.from ? a.from : b.from, co: a.to > b.to ? a.to : b.to };
+      await search(page, both);
+      for (const id of [APT_A, APT_B]) {
+        await expect(badge(page, id)).toHaveClass(/is-busy/);
+        await expect(badge(page, id).locator('.apt-avail-text')).toHaveText((await badge(page, id).getAttribute('data-busy'))!);
+      }
+      const none = page.locator('#availSummaryNone');
+      await expect(none).toBeVisible();
+      await expect(none.locator('a[href^="https://t.me/"]')).toBeVisible();
+      await expectListWithDates(page, both, [APT_A, APT_B]);
+      expect(jsErrors).toEqual([]);
+    });
+
+    test('API зайнятості без відповіді (неправильне тіло) → усі картки з датами, без тупика', async ({ page, request, jsErrors }) => {
+      const stay = freeStay(await availability(request, APT_A), 1)!;
+      await page.route('**/api/availability/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{"oops":1}' }));
+      await search(page, stay);
+      await expect(page.locator('#heroSearch .hsearch-submit')).not.toHaveClass(/is-loading/);
+      await expectListWithDates(page, stay, [APT_A, APT_B]);
+      expect(jsErrors).toEqual([]);
+    });
   });
 });

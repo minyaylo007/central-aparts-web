@@ -526,7 +526,7 @@ strong, b { font-weight: 600; color: var(--ink); }
   padding: 0.55rem;
   box-shadow: var(--shadow-soft);
   display: grid;
-  grid-template-columns: 1fr 1fr 0.78fr 1.45fr auto;
+  grid-template-columns: 1fr 1fr 0.78fr auto;
   gap: 0.35rem;
   align-items: stretch;
   max-width: 1000px;
@@ -570,27 +570,6 @@ strong, b { font-weight: 600; color: var(--ink); }
 .hsearch-input::placeholder { color: var(--soft-stone); font-weight: 500; }
 .hsearch-input:focus { outline: none; }
 .hsearch-guests { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
-.hsearch-select {
-  border: none;
-  background: transparent;
-  font-family: var(--font-body);
-  font-size: 1rem;       /* 16px — no iOS zoom */
-  font-weight: 600;
-  color: var(--ink);
-  padding: 0 1.3rem 0 0;
-  width: 100%;
-  cursor: pointer;
-  appearance: none;
-  -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 16 16'%3E%3Cpath fill='%23A24E36' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 0.15rem center;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  overflow: hidden;
-}
-.hsearch-select:focus { outline: none; }
-.hsearch-select option:disabled { color: var(--soft-stone); }
 .hsearch-step {
   width: 30px; height: 30px;
   border-radius: var(--r-round);
@@ -1304,9 +1283,7 @@ strong, b { font-weight: 600; color: var(--ink); }
 @media (max-width: 860px) {
   .hero-search { grid-template-columns: 1fr 1fr; gap: 0.4rem; }
   .hsearch-guests-field { grid-column: 1 / 2; }
-  .hsearch-apt-field { grid-column: 2 / 3; }
-  .hsearch-apt-field::before { display: none; }
-  .hsearch-submit { grid-column: 1 / -1; padding: 0.95rem; }
+  .hsearch-submit { grid-column: 2 / 3; padding: 0.95rem; }
   .apt-row { grid-template-columns: minmax(0, 1fr); gap: 1.8rem; }
   .apt-row:nth-child(even) .apt-row-media { order: 0; margin-top: 0; }
   .apt-row:nth-child(even) .apt-row-body { order: 0; }
@@ -1344,7 +1321,7 @@ strong, b { font-weight: 600; color: var(--ink); }
 
 @media (max-width: 560px) {
   .hero-search { grid-template-columns: 1fr; }
-  .hsearch-guests-field, .hsearch-apt-field { grid-column: auto; }
+  .hsearch-guests-field, .hsearch-submit { grid-column: auto; }
   .hsearch-field + .hsearch-field::before { display: none; }
   .hsearch-field + .hsearch-field { border-top: 1px solid var(--line-soft); }
 }
@@ -1656,7 +1633,7 @@ strong, b { font-weight: 600; color: var(--ink); }
   background: var(--surface); border: none; border-radius: var(--r-xl);
   box-shadow: var(--shadow-panel); padding: 0.5rem;
   backdrop-filter: none; -webkit-backdrop-filter: none;
-  grid-template-columns: 1fr 1fr 0.8fr 1.4fr auto; max-width: 1040px;
+  grid-template-columns: 1fr 1fr 0.8fr auto; max-width: 860px;
 }
 .hsearch-field { border-radius: var(--r-lg); padding: 0.7rem 1rem; }
 .hsearch-label { color: var(--stone); letter-spacing: 0.1em; }
@@ -1893,14 +1870,13 @@ strong, b { font-weight: 600; color: var(--ink); }
 }
 
 @media (max-width: 560px) {
-  /* пошук у три ряди (п.5), а не стовпчик із п'яти: дати | квартира на всю ширину | гості й кнопка.
-     22.10: квартира — на всю ширину, бо в половині на 390 px назва різалась до «Апартамент…» */
+  /* пошук у два ряди: дати | гості й кнопка. 26.11: вибору квартири в пошуку нема —
+     спершу дати, а що вільне, показує сайт (правило власника 26.11) */
   .hero-search { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.25rem; padding: 0.4rem; }
   .hsearch-field { padding: 0.55rem 0.75rem; }
   .hsearch-field + .hsearch-field { border-top: none; }
-  .hsearch-apt-field { grid-column: 1 / -1; grid-row: 2; }
-  .hsearch-guests-field { grid-column: 1 / 2; grid-row: 3; }
-  .hsearch-submit { grid-column: 2 / 3; grid-row: 3; min-height: 52px; }
+  .hsearch-guests-field { grid-column: 1 / 2; grid-row: 2; }
+  .hsearch-submit { grid-column: 2 / 3; grid-row: 2; min-height: 52px; }
   .hsearch-step { width: 32px; height: 32px; }
   .benefits-grid { grid-template-columns: minmax(0, 1fr); gap: 1rem; }
   .benefit { text-align: left; }

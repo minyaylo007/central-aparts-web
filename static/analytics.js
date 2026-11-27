@@ -193,8 +193,9 @@ on(D, 'click', function (ev) {
     if (a && a.origin === L.origin && a.target !== '_blank' && !a.hasAttribute('download') && a.getAttribute('href')[0] !== '#') bye();
   } catch (x) {}
 }, true);
+// 27.11: порожня причина (null/undefined/'') у тому ж вікні відходу — чужий скрипт, обірваний переходом.
 var netGone = function (r) {
-  return !!r && (r.name === 'AbortError' || ((r.name === 'TypeError' || r.name === 'NetworkError') && NET.test(String(r.message))))
+  return (r == null || r === '' || r.name === 'AbortError' || ((r.name === 'TypeError' || r.name === 'NetworkError') && NET.test(String(r.message))))
     && (now() - gone < 3000 || D.visibilityState === 'hidden');
 };
 on(W, 'unhandledrejection', function (ev) { var r = ev.reason; if (!netGone(r)) je((r && r.message) || r, 'promise', 0); });

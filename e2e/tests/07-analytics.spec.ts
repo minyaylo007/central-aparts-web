@@ -101,16 +101,23 @@ test.describe('Група 7 · Статистика', () => {
     await page.evaluate(() => {
       (document.getElementById('heroSearch') as HTMLFormElement).requestSubmit();
       Promise.reject(new TypeError('Load failed'));
+      Promise.reject();                 // 27.11: порожня причина при відході — теж без je
+      Promise.reject(null);
+      Promise.reject('');
       Promise.reject(new Error('marker після submit'));
     });
     // уміє сказати «так»: інша помилка промісу після submit — je як раніше
     await expect.poll(je, { timeout: 8000 }).toContain('promise marker після submit');
     expect(je(), 'обрив при відході — без je').not.toContain('promise Load failed');
+    for (const m of ['promise undefined', 'promise null', 'promise ']) {
+      expect(je(), 'порожня причина при відході — без je').not.toContain(m);
+    }
 
     await page.goto('/');
     events.length = 0;
-    await page.evaluate(() => { Promise.reject(new TypeError('Load failed')); });
+    await page.evaluate(() => { Promise.reject(new TypeError('Load failed')); Promise.reject(); });
     await expect.poll(je, { timeout: 8000 }).toContain('promise Load failed');
+    await expect.poll(je, { timeout: 8000 }).toContain('promise undefined');
   });
 
   test.describe('палець', () => {

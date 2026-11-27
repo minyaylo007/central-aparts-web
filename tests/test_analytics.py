@@ -549,3 +549,5 @@ def test_beacon_skips_network_abort_on_leave():
         assert ev in src
     assert "a.origin === L.origin" in src and "D.visibilityState === 'hidden'" in src
     assert "if (!netGone(r)) je(" in src
+    # 27.11: порожня причина при відході — теж тиша (чужий скрипт, обірваний переходом)
+    assert "return (r == null || r === '' || r.name === 'AbortError'" in src
